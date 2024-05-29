@@ -4,12 +4,60 @@
 An Simple example of an AS with two providers and one customer
 The policy is such that the customer traffic prefer once provider over the other
 And providers cannot use the network as transit.
+
+       +-------------+        +-------------+
+       | Provider1   |        | Provider2   |     Provider1, Provider2
+       | 10.0.0.2    |        | 10.0.0.4    |     network1: 128.0.0.0/24
+       +-------------+        +-------------+
+              | AS 400               | AS 500
+              |                      |
+    +---------|----------------------|---------+
+    |  +-------------+        +-------------+  |  Routing Policy
+    |  | R2          |--------| R3          |  |  Rule 1: Traffic from the customer peer
+    |  | 192.168.1.1 |        | 192.168.0.1 |  |  AS600 to the external peers prefers exit
+    |  +-------------+        +-------------+  |  routers in order: AS400, AS500
+    |         |                      |         |
+    |         |    +-------------+   |         |
+    |         +----| R1          |---+         |
+    |              | 192.168.2.1 |             |
+    |              +-------------+      AS 100 |
+    +---------------------|--------------------+
+                          |
+                   +-------------+
+                   | Cutomer     |                Customer
+                   | 10.0.0.0    |                network2: 128.0.1.0/24
+                   +-------------+ AS 600
+
+    Customer  (Fa0/0 10.0.0.0/31) <--> R1 (Fa0/0 10.0.0.1/31)
+    Customer  (lo100 128.0.1.1/32)
+
+    Provider1 (Fa0/0 10.0.0.2/31) <--> R2 (Fa0/0 10.0.0.3/31)
+    Provider1 (lo100 128.0.0.1/32)
+
+    Provider2 (Fa0/0 10.0.0.4/31) <--> R3 (Fa0/0 10.0.0.5/31)
+    Provider2 (lo100 128.0.0.1/32)
+
+    R1 (Fa0/0 10.0.0.1/31)  <--> Customer  (Fa0/0 10.0.0.0/31)
+    R1 (Fa0/1 10.0.0.11/31) <--> R2 (Fa0/1 10.0.0.10/31)
+    R1 (Fa1/0 10.0.0.7/31)  <--> R3 (Fa0/1 10.0.0.6/31)
+    R1 (lo100 192.168.2.1/32)
+
+    R2 (Fa0/0 10.0.0.3/31)  <--> Provider1 (Fa0/0 10.0.0.2/31)
+    R2 (Fa0/1 10.0.0.10/31) <--> R1 (Fa0/1 10.0.0.11/31)
+    R2 (Fa1/0 10.0.0.9/31)  <--> R3 (Fa1/0 10.0.0.8/31)
+    R2 (lo100 192.168.1.1/32)
+
+    R3 (Fa0/0 10.0.0.5/31)  <--> Provider2 (Fa0/0 10.0.0.4/31)
+    R3 (Fa0/1 10.0.0.6/31)  <--> R1 (Fa1/0 10.0.0.7/31)
+    R3 (Fa1/0 10.0.0.8/31)  <--> R2 (Fa1/0 10.0.0.9/31)
+    R3 (lo100 192.168.0.1/32)
 """
 
 import argparse
 import logging
 from ipaddress import ip_interface
 from ipaddress import ip_network
+import json
 
 from synet.utils.common import PathReq
 from synet.utils.common import PathOrderReq
@@ -48,8 +96,10 @@ def setup_logging():
 
 def bgp_example(output_dir):
     # Generate the basic network of three routers
+    # generate a full mesh topology, mesh_size = 3, asnum = 100
     graph = gen_mesh(3, 100)
-    r1, r2, r3, r4 = 'R1', 'R2', 'R3', 'R4'
+    # node: R1, R2, R3
+    r1, r2, r3 = 'R1', 'R2', 'R3'
 
     # Enable OSPF in the sketch
     for node in graph.local_routers_iter():
@@ -144,9 +194,12 @@ def bgp_example(output_dir):
 
     ########################## Configuration sketch ###############################
 
-    for local, peer in [(r2, provider1), (r3, provider2)]:
+    # modified by yongzheng for add (r1, customer) cofigure sketch
+    # for local, peer in [(r2, provider1), (r3, provider2)]:
+    for local, peer in [(r1, customer), (r2, provider1), (r3, provider2)]:
         imp_name = "{}_import_from_{}".format(local, peer)
         exp_name = "{}_export_to_{}".format(local, peer)
+        # generate route map
         imp = RouteMap.generate_symbolic(name=imp_name, graph=graph, router=local)
         exp = RouteMap.generate_symbolic(name=exp_name, graph=graph, router=local)
         graph.add_bgp_import_route_map(local, peer, imp.name)
@@ -154,14 +207,17 @@ def bgp_example(output_dir):
 
     for local, peer in [(r2, r3), (r3, r2)]:
         # In Cisco the last line is a drop by default
+        # configure route-map R2_export_R3 permit 10
         rline1 = RouteMapLine(matches=[], actions=[], access=VALUENOTSET, lineno=10)
         from tekton.bgp import Access
+        # configure route-map R2_export_R3 deny 100
         rline2 = RouteMapLine(matches=[], actions=[], access=Access.deny, lineno=100)
         rmap_export = RouteMap(name='{}_export_{}'.format(local, peer), lines=[rline1, rline2])
         graph.add_route_map(local, rmap_export)
         graph.add_bgp_export_route_map(local, peer, rmap_export.name)
 
-    # Requirements
+    ############################### Requirements ##################################
+
     path1 = PathReq(Protocols.BGP, prefix1, [customer, r1, r2, provider1], False)
     path2 = PathReq(Protocols.BGP, prefix1, [customer, r1, r3, r2, provider1], False)
     path3 = PathReq(Protocols.BGP, prefix1, [r3, r1, r2, provider1], False)
@@ -177,14 +233,16 @@ def bgp_example(output_dir):
             [
                 KConnectedPathsReq(Protocols.BGP, prefix1, [path1, path2, path3], False),
                 KConnectedPathsReq(Protocols.BGP, prefix1, [path4, path5, path6], False),
+                # path1,
+                # path4
             ],
             False),
         PathOrderReq(
             Protocols.OSPF,
             "dummy",
             [
-                PathReq(Protocols.OSPF, "dummy", [ r1, r2], False),
-                PathReq(Protocols.OSPF, "dummy", [ r1, r3, r2], False),
+                PathReq(Protocols.OSPF, "dummy", [r1, r2], False),
+                PathReq(Protocols.OSPF, "dummy", [r1, r3, r2], False),
             ],
             False
         ),
@@ -198,10 +256,49 @@ def bgp_example(output_dir):
             False
         ),
     ]
+
+    ############################### Print Graph ###################################
+
+    graph.write_dot('out-graph/dot_file')
+    graph.write_graphml('out-graph/graphml_file')
+    graph.write_propane('out-graph/propane_file')
+
+    r1_route_maps_dict = graph.get_route_maps(r1)
+    print "=" * 20 + " r1 route maps " + "=" * 15
+    print r1_route_maps_dict
+
+    r2_route_maps_dict = graph.get_route_maps(r2)
+    print "=" * 20 + " r2 route maps " + "=" * 15
+    print r2_route_maps_dict
+    r2_ip_prefix_dict = graph.get_ip_preflix_lists(r2)
+    print "=" * 20 + " r2 ip prefix " + "=" * 16
+    print r2_ip_prefix_dict
+
+    r3_route_maps_dict = graph.get_route_maps(r3)
+    print "=" * 20 + " r3 route maps " + "=" * 15
+    print r3_route_maps_dict
+
+    provider1_route_maps_dict = graph.get_route_maps(provider1)
+    print "=" * 20 + " provider1 route maps " + "=" * 8
+    print provider1_route_maps_dict
+
+    provider2_route_maps_dict = graph.get_route_maps(provider2)
+    print "=" * 20 + " provider2 route maps " + "=" * 8
+    print provider2_route_maps_dict
+
+    customer_route_maps_dict = graph.get_route_maps(customer)
+    print "=" * 20 + " customer route maps " + "=" * 9
+    print customer_route_maps_dict
+
+    ############################### NetComplete ###################################
+
     external_anns = [ann1, ann2, ann3]
     netcomplete = NetComplete(reqs=reqs, topo=graph, external_announcements=external_anns)
     netcomplete.synthesize()
     netcomplete.write_configs(output_dir=output_dir)
+
+    # added by yongzheng for remind the example finish
+    print "=========the example bgp_peers.py finish=========="
 
 
 if __name__ == '__main__':

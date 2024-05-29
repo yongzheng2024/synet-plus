@@ -1,5 +1,7 @@
 ipaddress
 enum34
-networkx==2.1
+networkx==2.2
 nose
 nose-timer
+xmltodict
+z3-solver==4.8.0.0.post1

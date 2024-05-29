@@ -13,9 +13,10 @@ PATH_TO_TOPOS="topos/*/"
 
 for file in topos/small/Arnes topos/small/Bics topos/small/Canerie topos/small/Renater2008 topos/small/CrlNetworkServices topos/mid/Columbus topos/mid/Esnet topos/mid/Latnet topos/mid/Sinet topos/mid/Uninett2011 topos/large/Cogentco topos/large/Colt topos/large/GtsCe topos/large/TataNld topos/large/UsCarrier;
 do
-topo="${file}.graphml"
-values="${file}_ospf_reqs.py "
-    for reqs in 1 2 4 8 16;
+    topo="${file}.graphml"
+    values="${file}_ospf_reqs.py "
+
+	for reqs in 1 2 4 8 16;
     do
         for req_type in "order" "simple";
         do
@@ -27,7 +28,7 @@ values="${file}_ospf_reqs.py "
                     do
                         echo $topo $values $req_type $reqs $fixed $sketch $RUN_ID
                     done
-		done
+				done
             done
         done
     done

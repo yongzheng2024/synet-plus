@@ -163,25 +163,40 @@ class NetComplete(object):
         return True
 
     def synthesize_bgp(self):
+        ###################### Compute BGP Propagation ############################
+        # create the context to hold symbolic variables used in BGP synthesis
+        # create the SMT context that contains all the known announcements
         self._bgp_ctx = self._create_context(create_as_paths=False)
+        # compute the BGP route propagation graph
         self._bgp_synthesizer = EBGPPropagation(self.bgp_reqs, self.topo, self._bgp_ctx)
-        # Compute BGP Propagation
+
+        ###################### Compute BGP Propagation ############################
+        # compute the propagation graph
         unmatching_order = self.bgp_synthesizer.compute_dags()
+        # verify the stability of the eBGP requirements
         if unmatching_order:
             msg = "Unimplementable BGP requirements; " \
                   "the following BGP selection order cannot be met: " \
                   "{}".format(unmatching_order)
             raise UnImplementableRequirements(msg)
+
+        # synthesize BGP propagation graph
         self.bgp_synthesizer.synthesize()
-        #SMT Solving
+
+        ###################### SMT Solving & Check ################################
+        # z3 slover
         self._bgp_solver = z3.Solver(ctx=self._bgp_ctx.z3_ctx)
+        # z3 check
         if self.bgp_ctx.check(self.bgp_solver, track=True, out_smt=self.configs.bgp_smt) != z3.sat:
             msg = "Unimplementable BGP requirements;" \
                   "Possibly change the requirements or loosen the sketch." \
                   "The following constraints couldn't be satisfied:" \
                   "{}".format(self.bgp_solver.unsat_core())
             raise UnImplementableRequirements(msg)
+
+        # update the network graph with the concrete values
         self.bgp_synthesizer.update_network_graph()
+
         return True
 
     def _check_ospf_path(self, req):

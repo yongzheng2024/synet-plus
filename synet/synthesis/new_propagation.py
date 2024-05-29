@@ -272,6 +272,7 @@ class EBGPPropagation(object):
 
         # For each traffic class compute the propagation graph
         for net, reqs in net_reqs.iteritems():
+            # for each requirement return the AS paths and router paths
             ebgp_paths, ibgp_paths = self.extract_reqs(reqs)
             # First compute the propagation among ASes (eBGP propagation)
             ebgp_propagation = compute_propagation(self.verify.peering_graph, ebgp_paths)

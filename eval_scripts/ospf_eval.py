@@ -149,7 +149,10 @@ def main():
     gns3 = GNS3Topo(topo)
     basename = os.path.basename(topo_file).strip('.graphml')
     out_name = "%s_%s_%s_%s" % (basename, fixed, req_type, reqsize)
-    out_dir = 'out-configs/%s_%d' % (out_name, ospfRand.randint(0, 1000))
+
+    # modified by yongzheng for unify configs output
+    # out_dir = 'out-configs/%s_%d' % (out_name, ospfRand.randint(0, 1000))
+    out_dir = 'out-configs/ospf_configs/%s_%d' % (out_name, ospfRand.randint(0, 1000))
     print "Writing configs to:", out_dir
     gns3.write_configs(out_dir)
 

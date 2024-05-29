@@ -47,6 +47,15 @@ from synet.utils.bgp_utils import compute_next_hop_map
 from synet.utils.bgp_utils import extract_all_next_hops
 
 
+# added by yongzheng to comment read and write xxx.json
+# 
+# sname = "%s_%s_%s_%s" % (basename, 'abs', req_type, reqsize)
+# with open('serialized/%s.json' % sname, 'r') as ff:
+# 
+# out_name = "%s_%s_%s_%s" % (basename, sketch_type, req_type, reqsize)
+# with open('serialized/%s.json' % out_name, 'w') as ff:
+
+
 def get_sym(concrete_anns, ctx):
     return read_announcements(concrete_anns, ctx)
 
@@ -1098,7 +1107,9 @@ def main():
     inv_prefix_map = {}
     if fixed > 0:
         sname = "%s_%s_%s_%s" % (basename, 'abs', req_type, reqsize)
-        with open('serialized/%s.json' % sname, 'r') as ff:
+        # modified by yongzheng for unify ebgp configs output
+        # with open('ebgpfinal/serialized/%s.json' % sname, 'r') as ff:
+        with open('logs/ebgp_logs/serialized/%s.json' % sname, 'r') as ff:
             read_maps = json.load(ff)
             inv_prefix_map = read_maps['inv_prefix_map']
         sampled_maps = rand.sample(read_maps['rmaps'].keys(), int(round(len(read_maps) * fixed)))
@@ -1180,7 +1191,9 @@ def main():
         prefix_map[prefix] = net
         print("Prefix {}: {}".format(prefix, net))
     gns3 = GNS3Topo(topo, prefix_map=prefix_map)
-    out_dir = 'out-configs/%s_%d' % (out_name, rand.randint(0, 1000))
+    # modified by yongzheng for unify configs output
+    # out_dir = 'out-configs/%s_%d' % (out_name, rand.randint(0, 1000))
+    out_dir = 'out-configs/ebgp_configs/%s_%d' % (out_name, rand.randint(0, 1000))
     print "Writing configs to:", out_dir
     gns3.write_configs(out_dir)
 
@@ -1197,7 +1210,9 @@ def main():
             'inv_prefix_map': dict([(unicode(v), str(k)) for k, v in gns3.config_gen.prefix_map.iteritems()]),
         }
 
-        with open('serialized/%s.json' % out_name, 'w') as ff:
+        # modified by yongzheng for unify ebgp configs output
+        # with open('ebgpfinal/serialized/%s.json' % out_name, 'w') as ff:
+        with open('logs/ebgp_logs/serialized/%s.json' % out_name, 'w') as ff:
             json.dump(info, ff, indent=2)
 
 
