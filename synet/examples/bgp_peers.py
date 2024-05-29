@@ -58,6 +58,7 @@ import logging
 from ipaddress import ip_interface
 from ipaddress import ip_network
 import json
+import os
 
 from synet.utils.common import PathReq
 from synet.utils.common import PathOrderReq
@@ -259,6 +260,7 @@ def bgp_example(output_dir):
 
     ############################### Print Graph ###################################
 
+    os.mkdir('out-graph')
     graph.write_dot('out-graph/dot_file')
     graph.write_graphml('out-graph/graphml_file')
     graph.write_propane('out-graph/propane_file')

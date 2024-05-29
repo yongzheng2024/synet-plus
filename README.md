@@ -200,7 +200,7 @@ Running
 
 ```sh
 $ cd /PATH-TO/synet-plus
-$ python2 synet/examples/bgp_peers.py outdir
+$ python2 synet/examples/bgp_peers.py out-configs-simple
 omitting ...
 =========the example bgp_peers.py finish==========
 ```
@@ -213,6 +213,8 @@ Running BGP experiments
 $ cd /PATH-TO/synet-plus
 # BGP
 $ sh eval_scripts/run-ebgp-experiments.sh
+waiting one hours ...
 # OSPF
 $ sh eval_scripts/run-ospf-experiments.sh
+waiting one hours ...
 ```
