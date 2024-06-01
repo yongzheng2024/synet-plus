@@ -15,6 +15,7 @@ from synet.utils.bgp_utils import PropagatedInfo
 from synet.utils.bgp_utils import annotate_graph
 from synet.utils.bgp_utils import compute_next_hop_map
 from synet.utils.bgp_utils import compute_propagation
+from synet.utils.bgp_utils import print_compute_propagation
 from synet.utils.common import KConnectedPathsReq
 from synet.utils.common import PathOrderReq
 from synet.utils.common import PathReq
@@ -109,9 +110,11 @@ class EBGPPropagation(object):
                     for neighbor in self.network_graph.neighbors(node):
                         if not self.network_graph.is_router(neighbor):
                             continue
+                        # ibgp
                         if self.network_graph.is_bgp_enabled(neighbor):
                             if self.network_graph.get_bgp_asnum(neighbor) == asnum:
                                 ibgp_graph.add_edge(node, neighbor)
+                        # other protocol that established peer (static, ospf)
                         else:
                             ibgp_graph.add_edge(node, neighbor)
                 new_size = (ibgp_graph.number_of_nodes(), ibgp_graph.number_of_edges())
@@ -151,6 +154,17 @@ class EBGPPropagation(object):
     def extract_reqs(self, reqs):
         """
         For each requirement return the AS paths and router paths
+
+        path1 = [a, b, c, d], path2 = [e, f, g, h], paths = [path1, path2]
+          a.asnum = 100, b.asnum = c.asnum = 200, d.asnum = 300
+          e.asnum = 400, f.asnum = g.asnum = 500, h.asnum = 600
+
+        reqs is PathReq (reqs.path is path1)
+          as_paths:     [set([(d, (300, 200, 100))])]
+          router_paths: [set([(d, (d, c, b, a))])]
+        reqs is PathOrderReq or KConnectedPathsReq (reqs.paths is paths)
+          as_paths:     [set([(d, (300, 200, 100))]), set([(h, (600, 500, 400))])]
+          router_pahts: [set([(d, (d, c, b, a))]), set([(h, (h, g, f, e))])]
         """
         as_paths = []
         router_paths = []
@@ -263,7 +277,7 @@ class EBGPPropagation(object):
 
     def compute_dags(self):
         """Compute the propagation graph"""
-        # First, group requirements by traffic class: Net-> List of Reqs
+        # First, group requirements by traffic class: DstNet -> List of Reqs
         net_reqs = {}
         for req in self.reqs:
             if req.dst_net not in net_reqs:
@@ -272,18 +286,40 @@ class EBGPPropagation(object):
 
         # For each traffic class compute the propagation graph
         for net, reqs in net_reqs.iteritems():
-            # for each requirement return the AS paths and router paths
-            ebgp_paths, ibgp_paths = self.extract_reqs(reqs)
+            # for each requirement return the AS paths and router paths (reversed)
+            as_paths, router_paths = self.extract_reqs(reqs)
+
             # First compute the propagation among ASes (eBGP propagation)
-            ebgp_propagation = compute_propagation(self.verify.peering_graph, ebgp_paths)
+            # params: self.verify.peering_graph via network_graph
+            #         undirected graph, node(x.asnum), edge(x.asnum, y.asnum)
+            # params: as_paths, list of set[(origin_asnum, as_paths)] (deduplicate)
+            # return: directed graph, requirement paths to allow_path (white list)
+            #   (other neighbor path) non-requirement paths to block_path
+            ebgp_propagation = compute_propagation(self.verify.peering_graph, as_paths)
             # Second compute the propagation among routers and possibily iBGP Propagation
-            ibgp_propagation = compute_propagation(self.network_graph, ibgp_paths)
+            ibgp_propagation = compute_propagation(self.network_graph, router_paths)
+
+            print "E" * 50
+            print_compute_propagation(ebgp_propagation)
+            print "E" * 50
+            print "I" * 50
+            print_compute_propagation(ibgp_propagation)
+            print "I" * 50
+
             for node in ibgp_propagation.nodes():
                 clear = [x for x in ibgp_propagation.node[node]['order'] if x]
                 ibgp_propagation.node[node]['order'] = clear
+
+            # check that the path preferenes are implementable by BGP
+            # params: ebgp_propagation, directed graph (as number graph via reqs)
             unmatching_order = self.verify.check_order(ebgp_propagation)
+
             # Extend the iBGP propagation to contain the eBGP paths
-            self.expand_ebgp_graph(ebgp_propagation, ibgp_propagation, ebgp_paths, ibgp_paths)
+            self.expand_ebgp_graph(ebgp_propagation, ibgp_propagation, as_paths, router_paths)
+            print "I" * 50
+            print_compute_propagation(ibgp_propagation)
+            print "I" * 50
+
             self.ebgp_graphs[net] = ebgp_propagation
             self.ibgp_graphs[net] = ibgp_propagation
 

@@ -24,6 +24,7 @@ def synthesize_next_hop(network_graph, node, neighbor, ibgp_loopback=True):
     :return the name of the interface (on the neighbor)
     """
     # TODO: Synthesize proper next hop
+    # TODO: added by yongzheng, ibgp or ebgp (ERROR)
     asnum1 = network_graph.get_bgp_asnum(node)
     asnum2 = network_graph.get_bgp_asnum(neighbor)
     if not ibgp_loopback or (asnum1 != asnum2 and network_graph.has_edge(neighbor, node)):
@@ -106,7 +107,7 @@ def compute_propagation(graph, ordered_paths):
 
     def allow_path(node, segment, index, origin):
         # Add it to the white list
-        tmp = (origin, segment)
+        # tmp = (origin, segment)
         tmp = segment
         if segment not in dag.node[node]['paths']:
             dag.node[node]['paths'].add(tmp)
@@ -118,16 +119,19 @@ def compute_propagation(graph, ordered_paths):
     def block_path(node, segment, origin):
         # Block it if it wasn't blocked before
         # And if the path isn't in the required paths already
-        tmp = (origin, segment)
+        # tmp = (origin, segment)
         tmp = segment
         if tmp not in dag.node[node]['block'] and \
                 tmp not in dag.node[node]['paths']:
             dag.node[node]['block'].add(tmp)
 
+    # tekton/graph has attr get_bgp_neighbors and neighbors
+    # networkx/graph and networkx/digraph has attr neighbors
     if hasattr(graph, 'get_bgp_neighbors'):
         iter_neigh = getattr(graph, 'get_bgp_neighbors')
     else:
         iter_neigh = getattr(graph, 'neighbors')
+
     # Iterate over each required path
     for index, paths in enumerate(ordered_paths):
         for origin, path in paths:
@@ -159,6 +163,14 @@ def compute_propagation(graph, ordered_paths):
                             block_path(add, segment, origin)
                             dag.add_edge(dst, add)
     return dag
+
+
+def print_compute_propagation(graph):
+    for node in graph.nodes():
+        print "node:", node
+        print "node['paths']:", graph.node[node]['paths']
+        print "node['order']:", graph.node[node]['order']
+        print "node['block']:", graph.node[node]['block']
 
 
 def write_dag(dag, file):

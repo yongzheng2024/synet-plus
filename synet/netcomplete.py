@@ -86,20 +86,20 @@ class NetCompleteConfigs(object):
 
 
 class NetComplete(object):
-    def __init__(self, reqs, topo, external_announcements, netcompplete_config=None):
+    def __init__(self, reqs, topo, external_announcements, netcomplete_config=None):
         self.log = logging.getLogger('%s.%s' % (
             self.__module__, self.__class__.__name__))
         assert not reqs or isinstance(reqs, Iterable)
         assert isinstance(topo, NetworkGraph)
         assert not external_announcements or isinstance(external_announcements, Iterable)
-        if not netcompplete_config:
-            netcompplete_config = NetCompleteConfigs()
-        assert isinstance(netcompplete_config, NetCompleteConfigs)
+        if not netcomplete_config:
+            netcomplete_config = NetCompleteConfigs()
+        assert isinstance(netcomplete_config, NetCompleteConfigs)
         self.reqs = reqs
         self.topo = topo
         self.connected_syn = ConnectedSyn([], self.topo, full=True)
         self.external_announcements = external_announcements
-        self.configs = netcompplete_config
+        self.configs = netcomplete_config
         self._bgp_ctx = None
         self._bgp_synthesizer = None
         self._bgp_solver = None
@@ -144,12 +144,22 @@ class NetComplete(object):
         :param create_as_paths:
         :return: SolverContext
         """
+        # compute the possible next hop values in the network
+        # the possible next hop is bgp neighbor interface (loopback or fastethernet)
         next_hops_map = compute_next_hop_map(self.topo)
+        # get a list(set()) of all next hop 
         next_hops = extract_all_next_hops(next_hops_map)
         peers = [node for node in self.topo.routers_iter()
                  if self.topo.is_bgp_enabled(node)]
+
+        # print network graph router (peer) and bgp neighbor interface (next_hop)
         print "PEER", peers
         print "NEXTHOPS", next_hops
+
+        # create the SMT context that contains all the known announcements
+        # involve some ctx.EnumType as follows
+        #   prefix_list, peer_list, bgp_attrs_origin, as_path_list, next_hop_list
+        #   xxx_list + read_list (x.xxx for x in announcements, if x.xxx not empty)
         ctx = SolverContext.create_context(self.announcements,
                                            peer_list=peers,
                                            next_hop_list=next_hops,
@@ -372,12 +382,17 @@ class NetComplete(object):
         ospf.update_network_graph()
 
     def synthesize(self):
+        # synthesize directly connected interfaces
         self.synthesize_connected()
+        # synthesize configure sketch of BGP
         if self.bgp_reqs:
             self.synthesize_bgp()
 
-        self.synthesize_ospf()
+        # synthesize configure sketch of OSPF
+        self.synthesize_ospf() 
+        # synthesize directly connected interfaces
         self.synthesize_connected()
+
         if self.bgp_reqs:
             ret1, not_ann1 = self._check_next_hops()
             if not_ann1:

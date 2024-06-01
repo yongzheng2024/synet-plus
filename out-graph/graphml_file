@@ -1,0 +1,100 @@
+<?xml version='1.0' encoding='utf-8'?>
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd">
+  <key attr.name="label" attr.type="string" for="edge" id="d4" />
+  <key attr.name="EDGE_TYPE" attr.type="string" for="edge" id="d3" />
+  <key attr.name="label" attr.type="string" for="node" id="d2" />
+  <key attr.name="bgp_asnum" attr.type="int" for="node" id="d1" />
+  <key attr.name="VERTEX_TYPE" attr.type="string" for="node" id="d0" />
+  <graph edgedefault="directed">
+    <node id="Customer">
+      <data key="d0">VERTEXTYPE.PEER</data>
+      <data key="d1">600</data>
+      <data key="d2">Customer
+PEER
+AS Num: 600</data>
+    </node>
+    <node id="R1">
+      <data key="d0">VERTEXTYPE.ROUTER</data>
+      <data key="d1">100</data>
+      <data key="d2">R1
+ROUTER
+AS Num: 100</data>
+    </node>
+    <node id="R2">
+      <data key="d0">VERTEXTYPE.ROUTER</data>
+      <data key="d1">100</data>
+      <data key="d2">R2
+ROUTER
+AS Num: 100</data>
+    </node>
+    <node id="R3">
+      <data key="d0">VERTEXTYPE.ROUTER</data>
+      <data key="d1">100</data>
+      <data key="d2">R3
+ROUTER
+AS Num: 100</data>
+    </node>
+    <node id="Provider2">
+      <data key="d0">VERTEXTYPE.PEER</data>
+      <data key="d1">500</data>
+      <data key="d2">Provider2
+PEER
+AS Num: 500</data>
+    </node>
+    <node id="Provider1">
+      <data key="d0">VERTEXTYPE.PEER</data>
+      <data key="d1">400</data>
+      <data key="d2">Provider1
+PEER
+AS Num: 400</data>
+    </node>
+    <edge source="Customer" target="R1">
+      <data key="d3">EDGETYPE.PEER</data>
+      <data key="d4">PEER</data>
+    </edge>
+    <edge source="R1" target="Customer">
+      <data key="d3">EDGETYPE.PEER</data>
+      <data key="d4">PEER</data>
+    </edge>
+    <edge source="R1" target="R2">
+      <data key="d3">EDGETYPE.ROUTER</data>
+      <data key="d4">ROUTER</data>
+    </edge>
+    <edge source="R1" target="R3">
+      <data key="d3">EDGETYPE.ROUTER</data>
+      <data key="d4">ROUTER</data>
+    </edge>
+    <edge source="R2" target="R3">
+      <data key="d3">EDGETYPE.ROUTER</data>
+      <data key="d4">ROUTER</data>
+    </edge>
+    <edge source="R2" target="Provider1">
+      <data key="d3">EDGETYPE.PEER</data>
+      <data key="d4">PEER</data>
+    </edge>
+    <edge source="R2" target="R1">
+      <data key="d3">EDGETYPE.ROUTER</data>
+      <data key="d4">ROUTER</data>
+    </edge>
+    <edge source="R3" target="R2">
+      <data key="d3">EDGETYPE.ROUTER</data>
+      <data key="d4">ROUTER</data>
+    </edge>
+    <edge source="R3" target="R1">
+      <data key="d3">EDGETYPE.ROUTER</data>
+      <data key="d4">ROUTER</data>
+    </edge>
+    <edge source="R3" target="Provider2">
+      <data key="d3">EDGETYPE.PEER</data>
+      <data key="d4">PEER</data>
+    </edge>
+    <edge source="Provider2" target="R3">
+      <data key="d3">EDGETYPE.PEER</data>
+      <data key="d4">PEER</data>
+    </edge>
+    <edge source="Provider1" target="R2">
+      <data key="d3">EDGETYPE.PEER</data>
+      <data key="d4">PEER</data>
+    </edge>
+  </graph>
+</graphml>

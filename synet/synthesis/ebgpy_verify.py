@@ -28,7 +28,7 @@ class EBGPVerify(object):
         Extract only the eBGP peering graph.
         Each node is an AS num, if the AS has multiple routers, then
         they are grouped into only one node.
-        :return: networkx.Graph
+        :return: networkx.Graph (undirected graph, node(x.asnum) edge(x.asnum, y.asnum))
         """
         graph = nx.Graph()
         ases = {}

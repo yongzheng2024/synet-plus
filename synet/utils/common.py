@@ -165,13 +165,6 @@ class KConnectedPathsReq(Req):
                 return False
         return True
 
-    def __eq__(self, other):
-        props = ['protocol', 'dst_net', 'paths', 'strict']
-        for prop in props:
-            if getattr(self, prop) != getattr(other, prop, None):
-                return False
-        return True
-
     def __repr__(self):
         return "KConnectedPathsReq(%s, '%s', %s, %s)" % (
             self.protocol, self.dst_net, self.paths, self.strict)

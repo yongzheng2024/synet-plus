@@ -574,42 +574,43 @@ class SolverContext(object):
         peer_list = peer_list if peer_list else []
         as_path_list = as_path_list if as_path_list else []
         as_path_list = [get_as_path_key(p) for p in as_path_list]
-        next_hope_list = next_hop_list if next_hop_list else []
+        next_hop_list = next_hop_list if next_hop_list else []
         announcements = announcements if announcements else []
         assert announcements, "No announcements defined to extract context from"
         ctx = SolverContext(z3.Context())
 
-        # Prefixes
+        # Prefixes prefix_list + read_list (x.prefix for x in announcements)
         read_list = [x.prefix for x in announcements if not is_empty(x.prefix)]
         prefix_list = list(set(read_list + prefix_list))
         prefix_list = [sanitize_smt_name(prefix) for prefix in prefix_list]
         ctx.create_enum_type(PREFIX_SORT, prefix_list)
 
-        # Peers
+        # Peers peer_list + read_list (x.peer for x in announcements)
         read_list = [x.peer for x in announcements
                      if not is_empty(x.peer)]
         peer_list = list(set(read_list + peer_list))
         ctx.create_enum_type(PEER_SORT, peer_list)
 
-        # BGP announcement origins
+        # BGP announcement origins IGP, EBGP,  INCOMPLETE
         origin_list = BGP_ATTRS_ORIGIN.__members__.keys()
         ctx.create_enum_type(BGP_ORIGIN_SORT, origin_list)
 
-        # AS path list
+        # AS path list as_path_list + read_list (x.as_path for x in announcements)
         if create_as_paths:
             read_list = [get_as_path_key(x.as_path) for x in announcements
                          if not is_empty(x.as_path)]
             as_path_list = list(set(read_list + as_path_list))
             ctx.create_enum_type(ASPATH_SORT, as_path_list)
 
-        # Next Hop
+        # Next Hop next_hop + read_list (x.next_hop for x in announcements)
         read_list = [x.next_hop for x in announcements
                      if not is_empty(x.next_hop)]
         origin_next_hop = '0.0.0.0'
         read_list.append(origin_next_hop)
-        next_hope_list = list(set(read_list + next_hope_list))
-        next_hope_list = [sanitize_smt_name(next_hop) for next_hop in next_hope_list]
-        vsort = ctx.create_enum_type(NEXT_HOP_SORT, next_hope_list)
+        next_hop_list = list(set(read_list + next_hop_list))
+        next_hop_list = [sanitize_smt_name(next_hop) for next_hop in next_hop_list]
+        vsort = ctx.create_enum_type(NEXT_HOP_SORT, next_hop_list)
+
         ctx.communities = announcements[0].communities.keys()
         ctx.origin_next_hop = sanitize_smt_name(origin_next_hop)
         ctx.origin_next_hop_var = vsort.get_symbolic_value(ctx.origin_next_hop)

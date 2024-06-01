@@ -149,7 +149,7 @@ def bgp_example(output_dir):
     # Known communities
     comms = [Community("100:{}".format(c)) for c in range(1, 4)]
     # The symbolic announcement injected by provider1
-    ann1 = Announcement(prefix1,
+    ann1 = Announcement(prefix=prefix1,
                         peer=provider1,
                         origin=BGP_ATTRS_ORIGIN.INCOMPLETE,
                         as_path=[5000],  # We assume it learned from other upstream ASes
@@ -162,7 +162,7 @@ def bgp_example(output_dir):
                         permitted=True)
     # The symbolic announcement injected by provider1
     # Note it has a shorter AS Path
-    ann2 = Announcement(prefix1,
+    ann2 = Announcement(prefix=prefix1,
                         peer=provider2,
                         origin=BGP_ATTRS_ORIGIN.INCOMPLETE,
                         as_path=[3000, 5000],  # We assume it learned from other upstream ASes
@@ -173,7 +173,7 @@ def bgp_example(output_dir):
                         communities=dict([(c, False) for c in comms]),
                         permitted=True)
     # The symbolic announcement injected by customer
-    ann3 = Announcement(prefix2,
+    ann3 = Announcement(prefix=prefix2,
                         peer=customer,
                         origin=BGP_ATTRS_ORIGIN.INCOMPLETE,
                         as_path=[],
@@ -219,6 +219,70 @@ def bgp_example(output_dir):
 
     ############################### Requirements ##################################
 
+    # PathReq class
+    #   Input params: protocol, dst_net, path, strict
+    #     (path (route path, such as [r1, r2, r3]))
+    #     (strict=True traffic should be dropped when path is not available)
+    # ECMPPathsReq class
+    #   Input params: protocol, dst_net, paths, strict
+    #     (paths (pathreq list))
+    #     (must have some dst_net and strict=False)
+    # KConnectedPathsReq class
+    #   Input params: protocol, dst_net, paths, strict
+    #     (paths (PathReq list))
+    #     (must have some dst_net and strict=False)
+    # PreferredPathReq class
+    #   Input params: protocol, dst_net, kconnected, strict
+    #     (kconnected (KConnectPathReq))
+    #     (must have some dst_net and strict=False)
+    # PathOrderReq class
+    #   Input params: protocol, dst_net, paths, strict
+    #     (paths (involve PathReq and KConnectPathReq list))
+    #     (must have some dst_net and strict=False)
+
+    # DstNet (map key) -> Lists of Reqs (map value)
+    # only one DstNet is prefix1
+    # prefix1 -> PathOrderReq(Protocols.BGP, prefix1, [KConnectedPathsReq, ...], ...)
+
+    # extract_reqs: reqs => as_paths and router_paths (reversed & deduplicate)
+    # + as_paths
+    #   [set([(p1, (AS400, AS100, AS600)), (p1, (AS400, AS100))]),
+    #    set([(p2, (AS500, AS100, AS600)), (p2, (AS500, AS100))])]
+    # + router_paths, {p1: provider1, p2: provider2, c: customer}
+    #   [set([(p1, (p1, r2, r1, c)), (p1, (p1, r2, r3, r1, c)), (p1, (p1, r2, r1, r3))]),
+    #    set([(p2, (p2, r3, r1, c)), (p2, (p2, r3, r2, r1, c)), (p2, (p2, r3, r1, r2))])]
+
+    # _extract_peering_graph: network_graph => undirected graph (asnum)
+    # + undirected graph (asnum)                            400--100--500
+    #   node: as400, as500, as100, as600                          |
+    #   edge: (as400, as100), (as500, as100), (as100, as600)     600 (asnum)
+
+    # compute_propagation: graph, ordered_paths => propagation graph (asnum or router)
+    # * graph: undirected graph (asnum) via _extract_peering_graph
+    # * ordered_paths: as_paths via extract_reqs
+    # + directed graph, propagation graph (asnum)
+    #   node: as400, as500, as100, as600
+    #   edge: <as400, as100>, <as500, as100>, <as100, as600>
+    #   as400.paths: set([(as400,)])
+    #   as400.order: [set([(as400,)]), set([])]
+    #   as400.block: set([(as400, as100, as500)])
+    #   as500.paths: set([(as500,)])
+    #   as500.order: [set([]), set([(as500,)])]
+    #   as500.block: set([(as500, as100, as400)])
+    #   as100.paths: set([(as400, as100), (as500, as100)])
+    #   as100.order: [set([(as400, as100)]), set([(as500, as100)])]
+    #   as100.block: set([])
+    #   as600.paths: set([(as400, as100, as600), (as500, as100, as600)])
+    #   as600.order: [set([(as400, as100, as600)]), set([]), 
+    #                 set([(as500, as100, as600)]), set([])]
+    #   as600.block: set([])
+    #   set(flatten(flatten(as400.order))) => set([as400])
+    #   set(flatten(flatten(as500.order))) => set([as500])
+    #   set(flatten(flatten(as100.order))) => set([as400, as100, as500])
+    #   set(flatten(flatten(as600.order))) => set([as400, as100, as600, as500])
+    # + directed graph, propagation graph (router)
+    #   omitting ...
+
     path1 = PathReq(Protocols.BGP, prefix1, [customer, r1, r2, provider1], False)
     path2 = PathReq(Protocols.BGP, prefix1, [customer, r1, r3, r2, provider1], False)
     path3 = PathReq(Protocols.BGP, prefix1, [r3, r1, r2, provider1], False)
@@ -260,7 +324,8 @@ def bgp_example(output_dir):
 
     ############################### Print Graph ###################################
 
-    os.mkdir('out-graph')
+    if not os.path.exists('out-graph'):
+        os.mkdir('out-graph')
     graph.write_dot('out-graph/dot_file')
     graph.write_graphml('out-graph/graphml_file')
     graph.write_propane('out-graph/propane_file')
