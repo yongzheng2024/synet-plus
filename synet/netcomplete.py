@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 
-"""
-The main class for netcomplete
-"""
+"""The main class for netcomplete"""
 
 import logging
 import random
@@ -182,19 +180,23 @@ class NetComplete(object):
 
         ###################### Compute BGP Propagation ############################
         # compute the propagation graph
-        unmatching_order = self.bgp_synthesizer.compute_dags()
+        unmatching_orders = self.bgp_synthesizer.compute_dags()
         # verify the stability of the eBGP requirements
-        if unmatching_order:
+        if unmatching_orders:
             msg = "Unimplementable BGP requirements; " \
                   "the following BGP selection order cannot be met: " \
-                  "{}".format(unmatching_order)
+                  "{}".format(unmatching_orders)
             raise UnImplementableRequirements(msg)
 
         # synthesize BGP propagation graph
         self.bgp_synthesizer.synthesize()
 
+        print "#" * 80
+        print "#" * 80
+        print "#" * 80
+
         ###################### SMT Solving & Check ################################
-        # z3 slover
+        # z3 solver
         self._bgp_solver = z3.Solver(ctx=self._bgp_ctx.z3_ctx)
         # z3 check
         if self.bgp_ctx.check(self.bgp_solver, track=True, out_smt=self.configs.bgp_smt) != z3.sat:
@@ -393,6 +395,7 @@ class NetComplete(object):
         # synthesize directly connected interfaces
         self.synthesize_connected()
 
+        """
         if self.bgp_reqs:
             ret1, not_ann1 = self._check_next_hops()
             if not_ann1:
@@ -418,6 +421,8 @@ class NetComplete(object):
                       "(consider announcing them in OSPF or static routes)" \
                       ": {}".format(tmp)
                 raise SketchError(err)
+        """
+
         return True
 
     def write_configs(self, output_dir, prefix_map=None, gns3_config=None):

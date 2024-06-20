@@ -18,12 +18,12 @@ def synthesize_next_hop(network_graph, node, neighbor, ibgp_loopback=True):
     Synthesizes a next hop interface between two router.
 
     If ibgp_loopback is set to True, iBGP peering session will
-    created between loopback interfaces of the routers, otherwise
-    the direct interface is used for peering between the two
+    created between loopback interfaces of the two routers, otherwise
+    the direct interface is used for peering between the two routers
 
     :return the name of the interface (on the neighbor)
     """
-    # TODO: Synthesize proper next hop
+    # TODO: Synthesize proper next hop (modify lo100)
     # TODO: added by yongzheng, ibgp or ebgp (ERROR)
     asnum1 = network_graph.get_bgp_asnum(node)
     asnum2 = network_graph.get_bgp_asnum(neighbor)
@@ -61,7 +61,7 @@ def compute_next_hop_map(network_graph, ibgp_loopback=True):
                 iface = synthesize_next_hop(network_graph, node, neighbor,
                                             ibgp_loopback=ibgp_loopback)
             network_graph.set_bgp_neighbor_iface(node, neighbor, iface)
-            assert iface, "Synthesize connected first"
+            assert iface, "Synthesize connected failed"
             iface = iface.replace("/", "-")
             nxt = "%s-%s" % (neighbor, iface)
             next_hop_map[node][neighbor] = sanitize_smt_name(nxt)
@@ -83,7 +83,7 @@ def annotate_graph(graph):
     """Annotate propagation graph with labels for prettier print out"""
     for node in graph.nodes():
         order = graph.node[node].get('order', [])
-        #paths = graph.node[node].get('paths', [])
+        # paths = graph.node[node].get('paths', [])
         block = graph.node[node].get('block', [])
         graph.node[node]['label'] = "%s\nAllow: %s\nBlock: %s" % (node, order, block)
 

@@ -1,14 +1,15 @@
 # !/usr/bin/env python
-"""
-Synthesize configurations for eBGP protocol
-"""
+
+"""synthesize configurations for eBGP protocol"""
+
 import copy
 import logging
 
 import networkx as nx
 import z3
 
-from synet.synthesis.ebgpy_verify import EBGPVerify
+from synet.settings import *
+from synet.synthesis.ebgp_verify import EBGPVerify
 from synet.synthesis.new_bgp import BGP
 from tekton.graph import NetworkGraph
 from synet.utils.bgp_utils import PropagatedInfo
@@ -27,12 +28,12 @@ from synet.utils.fnfree_smt_context import is_symbolic
 from synet.utils.smt_context import get_as_path_key
 
 
-__author__ = "Ahmed El-Hassany"
-__email__ = "a.hassany@gmail.com"
+__author__ = "Ahmed El-Hassany"     # maintainer Yongzheng Zhang
+__email__ = "a.hassany@gmail.com"   # yongzheng2024@outlook.com
 
 
 class EBGPPropagation(object):
-    """Computes the BGP route propagation graph"""
+    """compute the BGP route propagation graph"""
 
     def __init__(self, reqs, network_graph, ctx):
         log_name = '%s.%s' % (self.__module__, self.__class__.__name__)
@@ -284,9 +285,12 @@ class EBGPPropagation(object):
                 net_reqs[req.dst_net] = []
             net_reqs[req.dst_net].append(req)
 
+        unmatching_orders = []
+
         # For each traffic class compute the propagation graph
         for net, reqs in net_reqs.iteritems():
             # for each requirement return the AS paths and router paths (reversed)
+            # ebgp_paths, ibgp_paths = self.extract_reqs(reqs)
             as_paths, router_paths = self.extract_reqs(reqs)
 
             # First compute the propagation among ASes (eBGP propagation)
@@ -313,6 +317,8 @@ class EBGPPropagation(object):
             # check that the path preferenes are implementable by BGP
             # params: ebgp_propagation, directed graph (as number graph via reqs)
             unmatching_order = self.verify.check_order(ebgp_propagation)
+            if unmatching_order:
+                unmatching_orders.append(unmatching_order)
 
             # Extend the iBGP propagation to contain the eBGP paths
             self.expand_ebgp_graph(ebgp_propagation, ibgp_propagation, as_paths, router_paths)
@@ -327,11 +333,21 @@ class EBGPPropagation(object):
 
         # Override enum
         as_paths = self.partial_eval_propagated_info()
+
+        # print ebgp, ibgp output info
+        print as_paths
+        self.print_propagation_info()
+
         self.ctx.create_enum_type(ASPATH_SORT, [get_as_path_key(p) for p in as_paths])
-        return unmatching_order
+        return unmatching_orders
 
     def partial_eval_propagated_info(self):
         def get_as_path(path):
+            """
+            convert router paths to reversed as path and remove consecutive identical asnum
+            such as router paths: [R1(as100), R2(as100), R3(as200), R4(as300), R5(as100)]
+            return as paths:      (as100, as300, as200, as100) (origin positive direction)
+            """
             assert path
             external_peer = None
             egress = None
@@ -354,6 +370,7 @@ class EBGPPropagation(object):
                     if not is_bgp(node):
                         continue
                     if is_bgp(prev):
+                        # node enable bgp and prev enable bgp (ibgp or ebgp)
                         peer = prev
                         if get_as(node) != get_as(prev):
                             external_peer = prev
@@ -363,36 +380,46 @@ class EBGPPropagation(object):
             return external_peer, egress, peer, tuple(reversed(as_path))
 
         cache = dict()
-        for node in self.ibgp_propagation:
+        for node in self.ibgp_propagation.nodes():
             for net, attrs in self.ibgp_propagation.node[node]['nets'].iteritems():
+                # net: net_prefix -> attrs: info (order, paths, block)
                 paths = attrs['paths'].union(attrs['block'])
                 for path in paths:
                     if path in cache:
                         continue
+                    # convert router paths to reversed as paths
+                    # external_peer, the last matching enable bgp external peer
+                    # egress, the last matching enable bgp node learned this announcement
+                    # peer, the last matching enable bgp internal peer
                     external_peer, egress, peer, as_path = get_as_path(path)
                     # Append any extra AS Path info in the original announcement
                     check = False
                     ann_source = path[0]
                     for ann in self.network_graph.get_bgp_advertise(ann_source):
                         if ann.prefix == net:
-                            as_path += tuple(ann.as_path)
+                            as_path += tuple(ann.as_path)  # positive direction
                             check = True
                             break
+                    # assert announcement source without bgp announcements (same netprefix)
                     err = "Couldn't find announcement {} at node {}," \
                           "current announcements are: {}".format(
                         net, ann_source,
                         self.network_graph.get_bgp_advertise(ann_source))
                     assert check, err
+                    # add propagatedinfo to info cache
                     as_path_len = len(as_path)
                     info = PropagatedInfo(
-                        external_peer=external_peer,
-                        egress=egress,
-                        ann_name=net,
-                        peer=peer,
-                        as_path=as_path,
-                        as_path_len=as_path_len,
-                        path=path)
+                        external_peer=external_peer,   # the last matching external_peer
+                        egress=egress,                 # the last matching egress
+                        ann_name=net,                  # network prefix
+                        peer=peer,                     # the last matching peer
+                        as_path=as_path,               # origin path + announcement path
+                        as_path_len=as_path_len,       # added path length
+                        path=path)                     # origin paths or block path
                     cache[path] = info
+
+                # according to origin order and hierarchy (order, paths, block)
+                # to assign order_info, paths_info, block_info with info cache
                 order_info = []
                 block_info = set()
                 paths_info = set()
@@ -444,6 +471,7 @@ class EBGPPropagation(object):
                     if 'origins' not in attrs:
                         attrs['origins'] = {}
                     attrs['origins'][propagated] = origin
+
         return set([prop.as_path for prop in cache.values()])
 
     def synthesize(self, use_igp=False):
@@ -452,6 +480,9 @@ class EBGPPropagation(object):
             self.ibgp_propagation.node[node]['box'] = BGP(node, self)
         for node in self.ibgp_propagation.nodes():
             self.ibgp_propagation.node[node]['box'].synthesize(use_igp=use_igp)
+            # TODO sub-specifications verifier
+            # self.ibgp_propagation.node[node]['box'].synthesize_subspecs()
+
         print "Y" * 50
         print "PROPAGATION GRAPH SIZE:", self.ibgp_propagation.number_of_nodes()
         print "NETWORK GRAPH SIZE:", self.network_graph.number_of_nodes()
@@ -470,3 +501,29 @@ class EBGPPropagation(object):
         """Update the network graph with the concrete values"""
         for node in self.ibgp_propagation.nodes():
             self.ibgp_propagation.node[node]['box'].update_network_graph()
+
+    def print_propagation_info(self):
+        """print bgp propagation info"""
+        for node in self.ebgp_propagation.nodes():
+            print "#" * 50
+            print "node:", node
+            for net, attrs in self.ebgp_propagation.node[node][NETS].iteritems():
+                print "network prefix:", net
+                print "paths attributes:", attrs[PATHS]
+                print "order attributes:", attrs[ORDER]
+                print "block attributes:", attrs[BLOCK]
+                print "-" * 50
+
+        for node in self.ibgp_propagation.nodes():
+            print "#" * 50
+            print "node:", node
+            for net, attrs in self.ibgp_propagation.node[node][NETS].iteritems():
+                print "network prefix:", net
+                print "paths attributes:", attrs[PATHS]
+                print "order attributes:", attrs[ORDER]
+                print "block attributes:", attrs[BLOCK]
+                print "paths info attributes:", attrs[PATHS_INFO]
+                print "order info attributes:", attrs[ORDER_INFO]
+                print "block info attributes:", attrs[BLOCK_INFO]
+                print "origins info attributes:", attrs[ORIGIN]
+                print "-" * 50

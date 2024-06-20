@@ -13,12 +13,12 @@ And providers cannot use the network as transit.
               | 100:1                | 100:2
     +---------|----------------------|---------+
     |  +-------------+        +-------------+  |  Routing Policy
-    |  | R2          |--------| R3          |  |  Rule 1: Traffic from the customer peer
+    |  | R2 10.0.0.3 |--------| R3 10.0.0.5 |  |  Rule 1: Traffic from the customer peer
     |  | 192.168.1.1 |        | 192.168.0.1 |  |  AS600 to the external peers prefers exit
     |  +-------------+        +-------------+  |  routers in order: AS400, AS500
     |         |                      |         |
     |         |    +-------------+   |         |
-    |         +----| R1          |---+         |
+    |         +----| R1 10.0.0.1 |---+         |
     | 100:1 => 200 | 192.168.2.1 |             |
     | 100:2 => 100 +-------------+      AS 100 |
     +---------------------|--------------------+
@@ -68,10 +68,18 @@ from synet.utils.common import Protocols
 from tekton.utils import VALUENOTSET
 
 from tekton.bgp import BGP_ATTRS_ORIGIN
+# from tekton.bgp import Access
 from tekton.bgp import RouteMapLine
 from tekton.bgp import RouteMap
 from tekton.bgp import Announcement
 from tekton.bgp import Community
+from tekton.bgp import CommunityList
+from tekton.bgp import IpPrefixList
+from tekton.bgp import MatchCommunitiesList
+from tekton.bgp import MatchIpPrefixListList
+from tekton.bgp import MatchPermitted
+from tekton.bgp import ActionSetCommunity
+from tekton.bgp import ActionSetLocalPref
 from synet.netcomplete import NetComplete
 from synet.utils.topo_gen import gen_mesh
 
@@ -95,7 +103,7 @@ def setup_logging():
     logger.addHandler(ch)
 
 
-def bgp_example(output_dir):
+def test_bgp_example(output_dir):
     # Generate the basic network of three routers
     # generate a full mesh topology, mesh_size = 3, asnum = 100
     graph = gen_mesh(3, 100)
@@ -154,11 +162,12 @@ def bgp_example(output_dir):
                         origin=BGP_ATTRS_ORIGIN.INCOMPLETE,
                         as_path=[5000],  # We assume it learned from other upstream ASes
                         as_path_len=1,
-                        #next_hop='0.0.0.0',
+                        # next_hop='0.0.0.0',
                         next_hop='{}Hop'.format(provider1),
                         local_pref=100,
                         med=100,
-                        communities=dict([(c, False) for c in comms]),
+                        # communities=dict([(c, False) for c in comms]),
+                        communities=dict([(c, True) for c in comms]),
                         permitted=True)
     # The symbolic announcement injected by provider1
     # Note it has a shorter AS Path
@@ -167,10 +176,12 @@ def bgp_example(output_dir):
                         origin=BGP_ATTRS_ORIGIN.INCOMPLETE,
                         as_path=[3000, 5000],  # We assume it learned from other upstream ASes
                         as_path_len=2,
-                        next_hop='0.0.0.0',
+                        # next_hop='0.0.0.0',
+                        next_hop='{}Hop'.format(provider2),
                         local_pref=100,
                         med=100,
-                        communities=dict([(c, False) for c in comms]),
+                        # communities=dict([(c, False) for c in comms]),
+                        communities=dict([(c, True) for c in comms]),
                         permitted=True)
     # The symbolic announcement injected by customer
     ann3 = Announcement(prefix=prefix2,
@@ -179,9 +190,11 @@ def bgp_example(output_dir):
                         as_path=[],
                         as_path_len=0,
                         next_hop='0.0.0.0',
+                        # next_hop='{}Hop'.format(customer),
                         local_pref=100,
                         med=100,
-                        communities=dict([(c, False) for c in comms]),
+                        # communities=dict([(c, False) for c in comms]),
+                        communities=dict([(c, True) for c in comms]),
                         permitted=True)
 
     graph.add_bgp_advertise(provider1, ann1, loopback='lo100')
@@ -195,9 +208,153 @@ def bgp_example(output_dir):
 
     ########################## Configuration sketch ###############################
 
-    # modified by yongzheng for add (r1, customer) cofigure sketch
-    # for local, peer in [(r2, provider1), (r3, provider2)]:
-    for local, peer in [(r1, customer), (r2, provider1), (r3, provider2)]:
+    for local, peer in [(r2, provider1)]:
+        from tekton.bgp import Access
+        imp_name = "{}_import_from_{}".format(local, peer)
+        exp_name = "{}_export_to_{}".format(local, peer)
+        comm1 = Community(value="100:1")
+        comm2 = Community(value="100:2")
+        # TODO ip prefix-list network/len {permit|deny}
+        # network: destination network or source network
+        # prefix_list = IpPrefixList(name="Provider1_to_Customer", access=Access.permit, networks=[net2])
+        prefix_list = IpPrefixList(name="Provider1_to_Customer", access=Access.permit, networks=[net1])
+        match_prefix_list = MatchIpPrefixListList(prefix_list=prefix_list)
+        # match_permitted = MatchPermitted(access=Access.permit)
+        action_set_community = ActionSetCommunity(communities=[comm1])
+        rline1 = RouteMapLine(matches=[match_prefix_list], actions=[action_set_community], access=Access.permit, lineno=10)
+        # rline1 = RouteMapLine(matches=[match_permitted], actions=[action_set_community], access=Access.permit, lineno=10)
+        rline2 = RouteMapLine(matches=[], actions=[], access=Access.deny, lineno=100)
+        rmap_import = RouteMap(name=imp_name, lines=[rline1, rline2])
+        # TODO access=VALUENOTSET -> access=Access.permit
+        # rline3 = RouteMapLine(matches=[], actions=[], access=VALUENOTSET, lineno=10)
+        # rline3 = RouteMapLine(matches=[], actions=[], access=Access.permit, lineno=10)
+        # rline4 = RouteMapLine(matches=[], actions=[], access=Access.deny, lineno=100)
+        # rmap_export = RouteMap(name=exp_name, lines=[rline3, rline4])
+        comm1_list = CommunityList(list_id=1, access=Access.permit, communities=[comm1])
+        comm2_list = CommunityList(list_id=2, access=Access.permit, communities=[comm2])
+        match_comm1_list = MatchCommunitiesList(communities_list=comm1_list)
+        match_comm2_list = MatchCommunitiesList(communities_list=comm2_list)
+        rline3 = RouteMapLine(matches=[match_comm2_list], actions=[], access=Access.deny, lineno=10)
+        rline4 = RouteMapLine(matches=[], actions=[], access=Access.permit, lineno=20)
+        rline5 = RouteMapLine(matches=[], actions=[], access=Access.deny, lineno=100)
+        rmap_export = RouteMap(name=exp_name, lines=[rline3, rline4, rline5])
+        graph.add_route_map(local, rmap_import)
+        graph.add_route_map(local, rmap_export)
+        graph.add_bgp_import_route_map(local, peer, rmap_import.name)
+        graph.add_bgp_export_route_map(local, peer, rmap_export.name)
+
+    for local, peer in [(r3, provider2)]:
+        from tekton.bgp import Access
+        imp_name = "{}_import_from_{}".format(local, peer)
+        exp_name = "{}_export_to_{}".format(local, peer)
+        comm1 = Community(value="100:1")
+        comm2 = Community(value="100:2")
+        # TODO ip prefix-list network/len {permit|deny}
+        # network: destination network or source network
+        # prefix_list = IpPrefixList(name="Provider2_to_Customer", access=Access.permit, networks=[net2])
+        prefix_list = IpPrefixList(name="Provider2_to_Customer", access=Access.permit, networks=[net1])
+        match_prefix_list = MatchIpPrefixListList(prefix_list=prefix_list)
+        match_permitted = MatchPermitted(access=Access.permit)
+        action_set_community = ActionSetCommunity(communities=[comm2])
+        rline1 = RouteMapLine(matches=[match_prefix_list], actions=[action_set_community], access=Access.permit, lineno=10)
+        # rline1 = RouteMapLine(matches=[match_permitted], actions=[action_set_community], access=Access.permit, lineno=10)
+        rline2 = RouteMapLine(matches=[], actions=[], access=Access.deny, lineno=100)
+        rmap_import = RouteMap(name=imp_name, lines=[rline1, rline2])
+        # TODO access=VALUENOTSET -> access=Access.permit
+        # rline3 = RouteMapLine(matches=[], actions=[], access=VALUENOTSET, lineno=10)
+        # rline3 = RouteMapLine(matches=[], actions=[], access=Access.permit, lineno=10)
+        # rline4 = RouteMapLine(matches=[], actions=[], access=Access.deny, lineno=100)
+        # rmap_export = RouteMap(name=exp_name, lines=[rline3, rline4])
+        comm1_list = CommunityList(list_id=1, access=Access.permit, communities=[comm1])
+        comm2_list = CommunityList(list_id=2, access=Access.permit, communities=[comm2])
+        match_comm1_list = MatchCommunitiesList(communities_list=comm1_list)
+        match_comm2_list = MatchCommunitiesList(communities_list=comm2_list)
+        rline3 = RouteMapLine(matches=[match_comm1_list], actions=[], access=Access.deny, lineno=10)
+        rline4 = RouteMapLine(matches=[], actions=[], access=Access.permit, lineno=20)
+        rline5 = RouteMapLine(matches=[], actions=[], access=Access.deny, lineno=100)
+        rmap_export = RouteMap(name=exp_name, lines=[rline3, rline4, rline5])
+        graph.add_route_map(local, rmap_import)
+        graph.add_route_map(local, rmap_export)
+        graph.add_bgp_import_route_map(local, peer, rmap_import.name)
+        graph.add_bgp_export_route_map(local, peer, rmap_export.name)
+
+    # for local, peer in [(r2, r3), (r3, r2)]:
+        # from tekton.bgp import Access
+        # imp_name = "{}_import_from_{}".format(local, peer)
+        # exp_name = "{}_export_to_{}".format(local, peer)
+        # In Cisco the last line is a drop by default
+        # configure route-map Rx_import_from_Ry permit 10
+        # configure route-map Rx_import_from_Ry deny 100
+        # configure route-map Rx_export_to_Ry permit 10
+        # configure route-map Rx_export_to_Ry deny 100
+        # rline1 = RouteMapLine(matches=[], actions=[], access=Access.permit, lineno=10)
+        # rline1 = RouteMapLine(matches=[], actions=[], access=VALUENOTSET, lineno=10)
+        # rline2 = RouteMapLine(matches=[], actions=[], access=Access.deny, lineno=100)
+        # rmap_import = RouteMap(name=imp_name, lines=[rline1, rline2])
+        # rline3 = RouteMapLine(matches=[], actions=[], access=Access.permit, lineno=10)
+        # rline3 = RouteMapLine(matches=[], actions=[], access=VALUENOTSET, lineno=10)
+        # rline4 = RouteMapLine(matches=[], actions=[], access=Access.deny, lineno=100)
+        # rmap_export = RouteMap(name=exp_name, lines=[rline3, rline4])
+        # graph.add_route_map(local, rmap_import)
+        # graph.add_route_map(local, rmap_export)
+        # graph.add_bgp_import_route_map(local, peer, rmap_import.name)
+        # graph.add_bgp_export_route_map(local, peer, rmap_export.name)
+
+    for local, peer in [(r1, r2), (r1, r3)]:
+        from tekton.bgp import Access
+        imp_name = "{}_import_from_{}".format(local, peer)
+        exp_name = "{}_export_to_{}".format(local, peer)
+        comm1 = Community(value="100:1")
+        comm2 = Community(value="100:2")
+        comm1_list = CommunityList(list_id=1, access=Access.permit, communities=[comm1])
+        comm2_list = CommunityList(list_id=2, access=Access.permit, communities=[comm2])
+        match_comm1_list = MatchCommunitiesList(communities_list=comm1_list)
+        match_comm2_list = MatchCommunitiesList(communities_list=comm2_list)
+        action_set_localpref100 = ActionSetLocalPref(local_pref=100)
+        action_set_localpref200 = ActionSetLocalPref(local_pref=200)
+        rline1 = RouteMapLine(matches=[match_comm1_list], actions=[action_set_localpref200], access=Access.permit, lineno=10)
+        rline2 = RouteMapLine(matches=[match_comm2_list], actions=[action_set_localpref100], access=Access.permit, lineno=20)
+        rline3 = RouteMapLine(matches=[], actions=[], access=Access.deny, lineno=100)
+        rmap_import = RouteMap(name=imp_name, lines=[rline1, rline2, rline3])
+        # TODO
+        # rline4 = RouteMapLine(matches=[], actions=[], access=Access.permit, lineno=10)
+        # rline5 = RouteMapLine(matches=[], actions=[], access=Access.deny, lineno=100)
+        # rmap_export = RouteMap(name=exp_name, lines=[rline4, rline5])
+        rmap_export = RouteMap.generate_symbolic(name=exp_name, graph=graph, router=local)
+        graph.add_route_map(local, rmap_import)
+        graph.add_route_map(local, rmap_export)
+        graph.add_bgp_import_route_map(local, peer, rmap_import.name)
+        graph.add_bgp_export_route_map(local, peer, rmap_export.name)
+
+    # for local, peer in [(r1, r2)]:
+        # from tekton.bgp import Access
+        # exp_name = "{}_export_to_{}".format(local, peer)
+        # comm2 = Community(value="100:2")
+        # comm2_list = CommunityList(list_id=2, access=Access.permit, communities=[comm2])
+        # match_comm2_list = MatchCommunitiesList(communities_list=comm2_list)
+        # rline1 = RouteMapLine(matches=[match_comm2_list], actions=[], access=Access.deny, lineno=10)
+        # rline2 = RouteMapLine(matches=[], actions=[], access=Access.permit, lineno=20)
+        # rline3 = RouteMapLine(matches=[], actions=[], access=Access.deny, lineno=100)
+        # rmap_export = RouteMap(name=exp_name, lines=[rline1, rline2, rline3])
+        # graph.add_route_map(local, rmap_export)
+        # graph.add_bgp_export_route_map(local, peer, rmap_export.name)
+
+    # for local, peer in [(r1, r3)]:
+        # from tekton.bgp import Access
+        # exp_name = "{}_export_to_{}".format(local, peer)
+        # comm1 = Community(value="100:1")
+        # comm1_list = CommunityList(list_id=1, access=Access.permit, communities=[comm1])
+        # match_comm1_list = MatchCommunitiesList(communities_list=comm1_list)
+        # rline1 = RouteMapLine(matches=[match_comm1_list], actions=[], access=Access.deny, lineno=10)
+        # rline2 = RouteMapLine(matches=[], actions=[], access=Access.permit, lineno=20)
+        # rline3 = RouteMapLine(matches=[], actions=[], access=Access.deny, lineno=100)
+        # rmap_export = RouteMap(name=exp_name, lines=[rline1, rline2, rline3])
+        # graph.add_route_map(local, rmap_export)
+        # graph.add_bgp_export_route_map(local, peer, rmap_export.name)
+
+    """
+    # for local, peer in [(r1, customer), (r2, r3), (r3, r2)]:
+    for local, peer in [(r1, customer)]:
         imp_name = "{}_import_from_{}".format(local, peer)
         exp_name = "{}_export_to_{}".format(local, peer)
         # generate route map
@@ -205,17 +362,7 @@ def bgp_example(output_dir):
         exp = RouteMap.generate_symbolic(name=exp_name, graph=graph, router=local)
         graph.add_bgp_import_route_map(local, peer, imp.name)
         graph.add_bgp_export_route_map(local, peer, exp.name)
-
-    for local, peer in [(r2, r3), (r3, r2)]:
-        # In Cisco the last line is a drop by default
-        # configure route-map R2_export_R3 permit 10
-        rline1 = RouteMapLine(matches=[], actions=[], access=VALUENOTSET, lineno=10)
-        from tekton.bgp import Access
-        # configure route-map R2_export_R3 deny 100
-        rline2 = RouteMapLine(matches=[], actions=[], access=Access.deny, lineno=100)
-        rmap_export = RouteMap(name='{}_export_{}'.format(local, peer), lines=[rline1, rline2])
-        graph.add_route_map(local, rmap_export)
-        graph.add_bgp_export_route_map(local, peer, rmap_export.name)
+    """
 
     ############################### Requirements ##################################
 
@@ -313,10 +460,10 @@ def bgp_example(output_dir):
             Protocols.BGP,
             prefix1,
             [
-                KConnectedPathsReq(Protocols.BGP, prefix1, [path1, path2, path3], False),
-                KConnectedPathsReq(Protocols.BGP, prefix1, [path4, path5, path6], False),
-                # path1,
-                # path4
+                # KConnectedPathsReq(Protocols.BGP, prefix1, [path1, path2, path3], False),
+                # KConnectedPathsReq(Protocols.BGP, prefix1, [path4, path5, path6], False),
+                KConnectedPathsReq(Protocols.BGP, prefix1, [path1, path2], False),
+                KConnectedPathsReq(Protocols.BGP, prefix1, [path4, path5], False),
             ],
             False),
         PathOrderReq(
@@ -390,4 +537,4 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='BGP customer peer example.')
     parser.add_argument('outdir', type=str, help='output directory for the configuration')
     args = parser.parse_args()
-    bgp_example(args.outdir)
+    test_bgp_example(args.outdir)

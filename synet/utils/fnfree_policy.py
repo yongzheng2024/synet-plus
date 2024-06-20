@@ -223,6 +223,7 @@ class SMTMatchSelectOne(SMTAbstractMatch):
         self.matches = {}
         self.index_var = self.ctx.create_fresh_var(
             z3.IntSort(ctx=self.ctx.z3_ctx), name_prefix='SelectOne_index_')
+        print "=========> ", self.index_var
         for index, match in enumerate(matches):
             self.matches[index] = match
         # Make index in the range of number of matches
@@ -285,6 +286,7 @@ class SMTMatchAttribute(SMTAbstractMatch):
             value = ctx.create_fresh_var(
                 asort,
                 name_prefix='Match_attr_%s_' % attribute)
+            print "=========> ", value
         assert isinstance(value, SMTVar)
         attr_sort = getattr(announcements[0], attribute).vsort
         err = "Type mismatch of attribute and value %s != %s" % (
@@ -339,6 +341,7 @@ class SMTMatchCommunity(SMTAbstractMatch):
                 z3.BoolSort(ctx=self.ctx.z3_ctx),
                 name_prefix='Match_Community_var_',
                 value=True)
+            print "=========> ", value
         assert isinstance(value, SMTVar)
         self.value = value
         self.community = community
@@ -530,6 +533,7 @@ class SMTSetAttribute(SMTAbstractAction):
             vsort = getattr(announcements[0], attribute).vsort
             prefix = 'Set_%s_val' % attribute
             value = ctx.create_fresh_var(vsort, name_prefix=prefix)
+            print "=========> ", value
         assert isinstance(value, SMTVar)
         attr_sort = getattr(announcements[0], attribute).vsort
         err = "Type mismatch of attribute and value %s != %s" % (
@@ -619,6 +623,7 @@ class SMTSetCommunity(SMTAbstractAction):
             prefix = 'Set_community_val_'
             value = ctx.create_fresh_var(
                 z3.BoolSort(ctx=ctx.z3_ctx), name_prefix=prefix, value=True)
+            print "=========> ", value
         assert isinstance(value, SMTVar)
         err = "Value is not of type BoolSort %s" % (value.vsort)
         assert z3.BoolSort(ctx=ctx.z3_ctx) == value.vsort, err
@@ -735,6 +740,7 @@ class SMTSetOne(SMTAbstractAction):
         self.actions = {}
         self.index_var = self.ctx.create_fresh_var(
             z3.IntSort(ctx=self.ctx.z3_ctx), name_prefix='SetOneIndex_')
+        print "=========> ", self.index_var
         index = itertools.count(0)
         for action in actions:
             err1 = 'All actions must have the same match'
@@ -1148,6 +1154,7 @@ class SMTMatchCommunityList(SMTAbstractMatch):
     def _get_community_match(self, community):
         if not is_empty(community):
             var = self.ctx.create_fresh_var(vsort=z3.BoolSort(ctx=self.ctx.z3_ctx), value=True)
+            print "=========> SMT Match Commuity List", var
             match = SMTMatchCommunity(community=community, value=var,
                                       announcements=self.announcements,
                                       ctx=self.ctx)
@@ -1155,6 +1162,7 @@ class SMTMatchCommunityList(SMTAbstractMatch):
             comms = []
             for comm in self.ctx.communities:
                 var = self.ctx.create_fresh_var(z3.BoolSort(ctx=self.ctx.z3_ctx), value=True)
+                print "=========> SMT Match Commuity List", var
                 smt = SMTMatchCommunity(comm, var, self.announcements, self.ctx)
                 comms.append(smt)
             match = SMTMatchSelectOne(self.announcements, self.ctx, comms)
@@ -1184,11 +1192,13 @@ class SMTMatchIpPrefixList(SMTAbstractMatch):
         if not is_empty(ip):
             val = vsort.get_symbolic_value(ip)
             var = self.ctx.create_fresh_var(vsort, value=val)
+            print "=========> SMT Match Commuity List", var
             return SMTMatchPrefix(var, self.announcements, self.ctx)
 
         matches = []
         for ip in vsort.symbolic_values:
             var = self.ctx.create_fresh_var(vsort, value=ip)
+            print "=========> SMT Match Commuity List", var
             m = SMTMatchPrefix(var, self.announcements, self.ctx)
             matches.append(m)
         return SMTMatchSelectOne(self.announcements, self.ctx, matches)
@@ -1237,16 +1247,19 @@ class SMTMatch(SMTAbstractMatch):
         if value:
             value = vsort.get_symbolic_value(value)
         self.value = self.ctx.create_fresh_var(vsort=vsort, value=value)
+        print "=========> _load_match_next_hop", self.value
         self.smt_match = SMTMatchNextHop(self.value, self.announcements, self.ctx)
 
     def _load_match_local_pref(self):
         value = self.match.match if not is_empty(self.match.match) else None
         self.value = self.ctx.create_fresh_var(vsort=z3.IntSort(ctx=self.ctx.z3_ctx), value=value)
+        print "=========> _load_match_local_pref", self.value
         self.smt_match = SMTMatchLocalPref(self.value, self.announcements, self.ctx)
 
     def _load_match_med(self):
         value = self.match.match if not is_empty(self.match.match) else None
         self.value = self.ctx.create_fresh_var(vsort=z3.IntSort(ctx=self.ctx.z3_ctx), value=value)
+        print "=========> _load_match_med", self.value
         self.smt_match = SMTMatchMED(self.value, self.announcements, self.ctx)
 
     def _load_match_as_path(self):
@@ -1255,11 +1268,13 @@ class SMTMatch(SMTAbstractMatch):
         if value:
             value = vsort.get_symbolic_value(value)
         self.value = self.ctx.create_fresh_var(vsort=vsort, value=value)
+        print "=========> _load_match_as_path", self.value
         self.smt_match = SMTMatchASPath(self.value, self.announcements, self.ctx)
 
     def _load_match_as_path_len(self):
         value = self.match.match if not is_empty(self.match.match) else None
         self.value = self.ctx.create_fresh_var(vsort=z3.IntSort(ctx=self.ctx.z3_ctx), value=value)
+        print "=========> _load_match_as_path_len", self.value
         self.smt_match = SMTMatchASPathLen(self.value, self.announcements, self.ctx)
 
     def _load_match_peer(self):
@@ -1267,6 +1282,7 @@ class SMTMatch(SMTAbstractMatch):
         vsort = self.ctx.get_enum_type(PEER_SORT)
         if value:
             value = vsort.get_symbolic_value(value)
+        print "=========> _load_match_peer", self.value
         self.value = self.ctx.create_fresh_var(vsort=vsort, value=value)
         self.smt_match = SMTMatchPeer(self.value, self.announcements, self.ctx)
 
@@ -1281,6 +1297,8 @@ class SMTMatch(SMTAbstractMatch):
     def _load_match_select_one(self):
         matches = []
         for match in self.match.match:
+            print "IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII"
+            print match
             smt_match = SMTMatch(match, self.announcements, self.ctx)
             matches.append(smt_match)
         self.smt_match = SMTMatchSelectOne(self.announcements, self.ctx, matches)
@@ -1324,6 +1342,7 @@ class SMTActions(SMTAbstractAction):
         prev_ann_ctx = self.old_announcements
         for action in self.actions:
             smt_action = self.action_dispatch[type(action)](action, prev_ann_ctx)
+            print "-----------------------", smt_action
             if isinstance(smt_action, list):
                 self.smt_actions.extend(smt_action)
                 prev_ann_ctx = smt_action[-1].announcements
@@ -1356,6 +1375,7 @@ class SMTActions(SMTAbstractAction):
             # Partial evaluate
             value = True if action.value == Access.permit else False
         var = self.ctx.create_fresh_var(vsort=vsort, value=value)
+        print "=========> _set_access", var
         return SMTSetPermitted(self.smt_match, var, anns, self.ctx)
 
     def _set_community(self, community, anns):
@@ -1364,11 +1384,13 @@ class SMTActions(SMTAbstractAction):
         vsort = z3.BoolSort(ctx=self.ctx.z3_ctx)
         if community:
             var = self.ctx.create_fresh_var(vsort=vsort, value=True)
+            print "=========> _set_community", var
             return SMTSetCommunity(self.smt_match, community, var, anns, self.ctx)
         else:
             actions = []
             for community in self.ctx.communities:
                 var = self.ctx.create_fresh_var(vsort=vsort, value=True)
+                print "=========> _set_community inline", var
                 tmp = SMTSetCommunity(self.smt_match, community, var, anns, self.ctx)
                 actions.append(tmp)
             return SMTSetOne(self.smt_match, anns, self.ctx, actions)
@@ -1379,6 +1401,7 @@ class SMTActions(SMTAbstractAction):
         if action.additive == False:
             for comm in self.ctx.communities:
                 var = self.ctx.create_fresh_var(z3.BoolSort(ctx=self.ctx.z3_ctx), value=False)
+                print "=========> _set_communities", var
                 a = SMTSetCommunity(self.match, comm, var, prev_anns, self.ctx)
                 prev_anns = a.announcements
                 # Dont add these explicit resets
@@ -1393,6 +1416,7 @@ class SMTActions(SMTAbstractAction):
         value = action.value if not is_empty(action.value) else None
         vsort = z3.IntSort(ctx=self.ctx.z3_ctx)
         var = self.ctx.create_fresh_var(vsort=vsort, value=value)
+        print "=========> _set_local_pref", var
         return SMTSetLocalPref(self.smt_match, var, anns, self.ctx)
 
     def _set_next_hop(self, action, anns):
@@ -1401,11 +1425,13 @@ class SMTActions(SMTAbstractAction):
         if value:
             value = vsort.get_symbolic_value(value)
         var = self.ctx.create_fresh_var(vsort=vsort, value=value)
+        print "=========> _set_next_hop", var
         return SMTSetNextHop(self.smt_match, var, anns, self.ctx)
 
     def _set_one(self, action, anns):
         smt_actions = []
         for action in action.value:
+            print "=========> _set_one"
             smt_action = self.action_dispatch[type(action)](action, anns)
             if isinstance(smt_action, list):
                 smt_actions.extend(smt_action)
@@ -1419,6 +1445,7 @@ class SMTActions(SMTAbstractAction):
         if value:
             value = vsort.get_symbolic_value(value)
         var = self.ctx.create_fresh_var(vsort=vsort, value=value)
+        print "=========> _set_prefix", var
         return SMTSetPrefix(self.smt_match, var, anns, self.ctx)
 
     def get_config(self):
@@ -1480,6 +1507,7 @@ class SMTSelectorMatch(SMTAbstractMatch):
                 z3.BoolSort(ctx=self.ctx.z3_ctx),
                 name_prefix='match_sel_',
                 value=value)
+            print "=========> ", match_var
             if not value:
                 self.ctx.register_constraint(
                     z3.And(is_match.var,
@@ -1506,20 +1534,27 @@ class SMTRouteMapLine(SMTAbstractAction):
         """
         log_name = '%s.%s' % (self.__module__, self.__class__.__name__)
         self.log = logging.getLogger(log_name)
-        self.log.debug("Parsing Route Map line: %d to process: %d announcements",
-                       line.lineno, len(announcements))
+        print "R" * 70
+        self.log.debug("Parsing Route Map line: %d to process: %d announcements %s",
+                       line.lineno, len(announcements), announcements)
+        for i in range(len(announcements)):
+            print announcements[i]
+        print "R" * 70
         self.ctx = ctx
         self.line = line
         self._old_announcements = announcements
         self.line_no_match = line_no_match
+        print "++++++++++++++++++++++++++ SMTMatch & SMTMachAnd"
         if not line.matches:
             # Empty matches all by default
             self.smt_match = SMTMatch(None, self.old_announcements, self.ctx)
         elif len(line.matches) == 1:
             # One match, no need to use And
+            print "------------------------------------ one match"
             self.smt_match = SMTMatch(line.matches[0], self.old_announcements, self.ctx)
         else:
             # More than match, combine them with an And
+            print "----------------------------------- more match"
             sub_matches = [SMTMatch(match, self.old_announcements, self.ctx)
                             for match in line.matches]
             self.smt_match = SMTMatchAnd(
@@ -1527,6 +1562,7 @@ class SMTRouteMapLine(SMTAbstractAction):
                 announcements=self.old_announcements,
                 ctx=self.ctx)
         # Ensure that only one route map is selected is selected
+        print "++++++++++++++++++++++++++ SMTSelectorMatch"
         self.selector_match = SMTSelectorMatch(
             selectors_vars=line_no_match,
             selector_value=self.line.lineno,
@@ -1541,6 +1577,7 @@ class SMTRouteMapLine(SMTAbstractAction):
             assert isinstance(line.actions, Iterable)
             actions += line.actions
         # Call the actions
+        print "++++++++++++++++++++++++++ SMTActions"
         self.smt_actions = SMTActions(
             match=self.selector_match,
             actions=actions,
@@ -1548,6 +1585,11 @@ class SMTRouteMapLine(SMTAbstractAction):
             ctx=self.ctx,
             selector=self.line_no_match)
         self._announcements = self.smt_actions.announcements
+
+        print "S" * 50
+        print self.smt_match
+        print self.smt_actions
+        print "S" * 50
 
     @property
     def announcements(self):
@@ -1604,21 +1646,27 @@ class SMTRouteMap(SMTAbstractAction):
         name_prefix = 'SelectOneRmapLineIndex_'
         line_numbers = [line.lineno for line in route_map.lines]
         selectors = {}
+        print "++++++++++++++++++++++++++ SMTRouteMap"
         for announcement in self.old_announcements:
             index_var = self.ctx.create_fresh_var(
                 z3.IntSort(ctx=self.ctx.z3_ctx), name_prefix=name_prefix)
+            print "=========> ", index_var
             selectors[announcement] = index_var
             SELECTOR[announcement] = index_var
+            # Bound the selector variable only to the available
             possible_vals = [index_var.var == lineno for lineno in line_numbers]
             possible_vals += [self.ctx.z3_ctx]
-            # Bound the selector variable only to the available
             # route map line numbers
-            self.ctx.register_constraint(z3.Or(*possible_vals),
-                                         name_prefix='RmapIndexBound_%s_' % self.route_map.name)
+            const_var = self.ctx.register_constraint(z3.Or(*possible_vals),
+                            name_prefix='RmapIndexBound_%s_' % self.route_map.name)
+            print "=========> ", const_var
 
+        # TODO not understand
         prev_anns = self._old_announcements
         matched_anns = []
         for i, line in enumerate(self.route_map.lines):
+            # TODO box = SMTRouteMapLine
+            print "++++++++++++++++++++++++++ SMTRouteMapLine"
             box = SMTRouteMapLine(selectors, line, prev_anns, self.ctx)
             self.smt_lines.append(box)
             # Cascade changes
@@ -1629,6 +1677,7 @@ class SMTRouteMap(SMTAbstractAction):
                 continue
             for ann in self.old_announcements:
                 index_var = selectors[ann]
+                print "++++++++++++++++++++++++++ is_match"
                 is_match = box.smt_match.is_match(ann)
                 if i == 0:
                     const = z3.If(box.smt_match.is_match(ann).var == True,

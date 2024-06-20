@@ -12,6 +12,9 @@ import z3
 from tekton.bgp import BGP_ATTRS_ORIGIN
 from tekton.bgp import Announcement
 
+from ipaddress import IPv4Address
+from ipaddress import IPv6Address
+
 
 __author__ = "Ahmed El-Hassany"
 __email__ = "a.hassany@gmail.com"
@@ -41,7 +44,10 @@ ALPHA = 'APLPHA_'
 
 def sanitize_smt_name(name):
     """Replace special chars from a name to make more friendly to SMT solver"""
-    if not name[0].isalpha():
+    # modified by yongzheng for support ipaddress IPv4Address and IPv6Address
+    # if not name[0].isalpha():
+    ipaddress_type = (IPv4Address, IPv6Address)
+    if isinstance(name[0], ipaddress_type) or not name[0].isalpha():
         tmp = "{}{}".format(ALPHA, name)
     else:
         tmp = name
@@ -378,12 +384,18 @@ class SolverContext(object):
             raise ValueError(err)
         self._vars[var.name] = var
 
+    def print_register_var(self):
+        """print all SMT variables"""
+        for val in vals:
+            print val
+
     def create_fresh_var(self, vsort, name=None, name_prefix=None, value=None):
         """
         Create new Z3 Variable
         :raise ValueError: if the variable is duplicated
         :param var_sort: The type of the variable, e.g., z3.IntSort()
         :param name: if name is not provided, a new name will be generated
+        :param value: TODO
         :return: z3 Variable
         """
         if not name:
@@ -586,12 +598,11 @@ class SolverContext(object):
         ctx.create_enum_type(PREFIX_SORT, prefix_list)
 
         # Peers peer_list + read_list (x.peer for x in announcements)
-        read_list = [x.peer for x in announcements
-                     if not is_empty(x.peer)]
+        read_list = [x.peer for x in announcements if not is_empty(x.peer)]
         peer_list = list(set(read_list + peer_list))
         ctx.create_enum_type(PEER_SORT, peer_list)
 
-        # BGP announcement origins IGP, EBGP,  INCOMPLETE
+        # BGP announcement origins IGP, EBGP, INCOMPLETE
         origin_list = BGP_ATTRS_ORIGIN.__members__.keys()
         ctx.create_enum_type(BGP_ORIGIN_SORT, origin_list)
 
@@ -603,8 +614,7 @@ class SolverContext(object):
             ctx.create_enum_type(ASPATH_SORT, as_path_list)
 
         # Next Hop next_hop + read_list (x.next_hop for x in announcements)
-        read_list = [x.next_hop for x in announcements
-                     if not is_empty(x.next_hop)]
+        read_list = [x.next_hop for x in announcements if not is_empty(x.next_hop)]
         origin_next_hop = '0.0.0.0'
         read_list.append(origin_next_hop)
         next_hop_list = list(set(read_list + next_hop_list))
