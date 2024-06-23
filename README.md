@@ -199,7 +199,7 @@ SyNet-Plus(NetComplete) Files:
 $ git clone https://github.com/grapefruit0/ipaddress.git
 
 $ cd ipaddress
-$ mv ipaddress.py /PATH-TO/python2.7/site-packages/ipaddress.py
+$ cp ipaddress.py /PATH-TO/python2.7/site-packages/ipaddress.py
      # for linux, ~/.local/lib/python2.7/site-packages/ipaddress.py
 ```
 
@@ -207,7 +207,7 @@ $ mv ipaddress.py /PATH-TO/python2.7/site-packages/ipaddress.py
 
 #### Running HotNets Experiments
 
-Running BGP experiments for current HotNetsA experiments
+Running BGP experiments for current HotNets experiments
 
 ```sh
 $ cd /PATH-TO/synet-plus
