@@ -213,11 +213,11 @@ Running BGP experiments for current HotNetsA experiments
 $ cd /PATH-TO/synet-plus
 
 # full-configuration
-$ python2 synet/hotnets/test_full_configuration.py out-configs-full
+$ python2 hotnets/test_full_configuration.py out-configs-full
 
 # hole-configuration-nexthop
-$ python2 synet/hotnets/test_hole_configuration_nexthop.py out-configs-nexthop
+$ python2 hotnets/test_hole_configuration_nexthop.py out-configs-nexthop
 
 # hole-configuration-community
-$ python2 synet/hotnets/test_hole_configuration_community.py out-configs-community
+$ python2 hotnets/test_hole_configuration_community.py out-configs-community
 ```
