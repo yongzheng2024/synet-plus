@@ -316,6 +316,7 @@ class EBGPPropagation(object):
 
             # check that the path preferenes are implementable by BGP
             # params: ebgp_propagation, directed graph (as number graph via reqs)
+            # TODO
             unmatching_order = self.verify.check_order(ebgp_propagation)
             if unmatching_order:
                 unmatching_orders.append(unmatching_order)

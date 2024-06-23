@@ -76,7 +76,7 @@ class EBGPVerify(object):
 
     def check_order(self, graph):
         """check that the path preferences are implementable by BGP"""
-        # TODO not understand
+        # TODO not understand 20240621
         unmatching_orders = []
         for node in graph.nodes():
             graph.node[node][ORDER] = [x for x in graph.node[node][ORDER] if x]
@@ -96,5 +96,8 @@ class EBGPVerify(object):
                     comp = graph.node[pred][ORDER][first_match:len(segment) + 1]
                 err = "node %s, pred %s: expected %s but found %s" % (node, pred, segment, comp)
                 if segment != comp:
+                    # print segment
+                    # print "-" * 50
+                    # print comp
                     unmatching_orders.append((segment, comp, err))
         return unmatching_orders

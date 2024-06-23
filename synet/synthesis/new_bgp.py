@@ -240,10 +240,10 @@ class BGP(object):
                 export_anns[neighbor] = {}
             for prop in propagated:
                 origin = n_attrs['nets'][prop.ann_name]['origins'][prop]
-                print "O" * 50
-                print prop
-                print origin
-                print "O" * 50
+                # print "O" * 50
+                # print prop
+                # print origin
+                # print "O" * 50
                 if not origin:
                     continue
                 export_anns[neighbor][prop] = self.anns_map[origin]
@@ -259,8 +259,8 @@ class BGP(object):
         # paths info + block info ( + order info )
         # BGP SMT begin: xxxxx_info -> xxxxx_anns ( SMT variables )
 
-        # export_info[neighbor][prop] -> origin
-        # export_anns[neighbor][prop] -> origin 
+        # export_info[neighbor][prop] -> origin xxxxx_info
+        # export_anns[neighbor][prop] -> origin xxxxx_anns
 
         # TODO write some infomation to related file
         # Third, apply export route map (if any)
@@ -275,9 +275,11 @@ class BGP(object):
 
             # Apply any export policies (if any)
             rmap_name = self.network_graph.get_bgp_export_route_map(self.node, neighbor)
-            print "R" * 50
+            print "E" * 80
             print rmap_name
-            print "R" * 50
+            for prop in props:
+                print prop
+            print "E" * 80
             if not rmap_name:
                 continue
             rmap = self.network_graph.get_route_maps(self.node)[rmap_name]
@@ -289,15 +291,15 @@ class BGP(object):
                 # update export_anns[neighbor][prop]
                 #        origin -> route map (smt_map.announcements[index])
                 export_anns[neighbor][prop] = smt_map.announcements[index]
-                print "E" * 50
-                print index, prop
-                print smt_map.announcements[index]
-                print "E" * 50
+                # print "E" * 50
+                # print index, prop
+                # print smt_map.announcements[index]
+                # print "E" * 50
                 assert assert_order(tmp[index], export_anns[neighbor][prop])
 
-        print "A" * 50
+        print "A" * 70
         print export_anns
-        print "A" * 50
+        print "A" * 70
         return export_anns
 
     def _get_selected_sham(self):
@@ -690,6 +692,9 @@ class BGP(object):
         """Update the network graph with the concrete values"""
         for smt_rmap in self.rmaps.values():
             rmap = smt_rmap.get_config()
+            print "P" * 50
+            print rmap
+            print "P" * 50
             self.network_graph.add_route_map(self.node, rmap)
             for line in rmap.lines:
                 for match in line.matches:

@@ -198,13 +198,16 @@ class NetComplete(object):
         ###################### SMT Solving & Check ################################
         # z3 solver
         self._bgp_solver = z3.Solver(ctx=self._bgp_ctx.z3_ctx)
-        # z3 check
+        # z3 check ( call SolverContext.check )
         if self.bgp_ctx.check(self.bgp_solver, track=True, out_smt=self.configs.bgp_smt) != z3.sat:
             msg = "Unimplementable BGP requirements;" \
                   "Possibly change the requirements or loosen the sketch." \
                   "The following constraints couldn't be satisfied:" \
                   "{}".format(self.bgp_solver.unsat_core())
             raise UnImplementableRequirements(msg)
+
+        print "*" * 80
+        print "*" * 80
 
         # update the network graph with the concrete values
         self.bgp_synthesizer.update_network_graph()
@@ -395,7 +398,6 @@ class NetComplete(object):
         # synthesize directly connected interfaces
         self.synthesize_connected()
 
-        """
         if self.bgp_reqs:
             ret1, not_ann1 = self._check_next_hops()
             if not_ann1:
@@ -421,7 +423,6 @@ class NetComplete(object):
                       "(consider announcing them in OSPF or static routes)" \
                       ": {}".format(tmp)
                 raise SketchError(err)
-        """
 
         return True
 

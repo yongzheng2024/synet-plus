@@ -89,7 +89,8 @@ $ sudo make install
 
 ### <b>Tekton Build and Make</b>
 
-[https://github.com/nsg-ethz/tekton](https://github.com/nsg-ethz/tekton)
+[origin https://github.com/nsg-ethz/tekton](https://github.com/nsg-ethz/tekton)
+[modified https://github.com/grapefruit0/tekton](https://github.com/grapefruit0/tekton)
 
 ```sh
 $ git clone https://github.com/grapefruit0/tekton.git
@@ -100,7 +101,8 @@ $ pip2 install -e .  # note: use pip2
 
 ### <b>SyNet-Plus(NetComplete) Python Dependencies Install</b>
 
-[https://github.com/nsg-ethz/synet-plus](https://github.com/nsg-ethz/synet-plus)
+[origin https://github.com/nsg-ethz/synet-plus](https://github.com/nsg-ethz/synet-plus)
+[modified https://github.com/grapefruit0/synet-plus](https://github.com/grapefruit0/synet-plus)
 
 ```sh
 $ git clone https://github.com/grapefruit0/synet-plus.git
@@ -183,38 +185,39 @@ Python Dependencies Files:
 Tekton Files:
 +++ /PATH-TO/tekton/tekton/cisco.py
 +++ /PATH-TO/tekton/tekton/gns3.py
++++ ......
 
 SyNet-Plus(NetComplete) Files:
 +++ /PATH-TO/synet-plus/synet/examples/bgp_peers.py
 +++ /PATH-TO/synet-plus/eval_scripts/run-ebgp.sh
++++ ......
+```
+
+#### Replace python file ipaddress.py
+
+```sh
+$ git clone https://github.com/grapefruit0/ipaddress.git
+
+$ cd ipaddress
+$ mv ipaddress.py /PATH-TO/python2.7/site-packages/ipaddress.py
+     # for linux, ~/.local/lib/python2.7/site-packages/ipaddress.py
 ```
 
 ### <b>Example and Test</b>
 
-#### An Example use of NetComplete
+#### Running HotNets Experiments
 
-The example at `synet/examples/bgp_peers.py` shows how to use NetComplete to synthesize 
-Provider/Customer peering policies.
-
-Running
+Running BGP experiments for current HotNetsA experiments
 
 ```sh
 $ cd /PATH-TO/synet-plus
-$ python2 synet/examples/bgp_peers.py out-configs-simple
-omitting ...
-=========the example bgp_peers.py finish==========
-```
 
-#### Running NSDI Experiments
+# full-configuration
+$ python2 synet/hotnets/test_full_configuration.py out-configs-full
 
-Running BGP experiments
+# hole-configuration-nexthop
+$ python2 synet/hotnets/test_hole_configuration_nexthop.py out-configs-nexthop
 
-```sh
-$ cd /PATH-TO/synet-plus
-# BGP
-$ sh eval_scripts/run-ebgp-experiments.sh
-waiting one hours ...
-# OSPF
-$ sh eval_scripts/run-ospf-experiments.sh
-waiting one hours ...
+# hole-configuration-community
+$ python2 synet/hotnets/test_hole_configuration_community.py out-configs-community
 ```

@@ -294,6 +294,8 @@ class SMTVar(object):
         """Concertize the variable value based on the z3 model"""
         if not self.is_concrete:
             value = model.eval(self.get_var())
+            print "+" * 20, self.get_var()
+            print ">" * 20, value
             if self._is_enum:
                 self._value = value
             elif isinstance(value, z3.BoolRef):
@@ -405,6 +407,7 @@ class SolverContext(object):
         if name in self._vars:
             err = "Variable name '%s' is already registered" % name
             raise ValueError(err)
+        print "~" * 10, name
         var = SMTVar(name, vsort, value)
         self._register_var(var)
         return var
@@ -491,9 +494,9 @@ class SolverContext(object):
         partially_eval_vars = len([var for var in self._vars.values() if var.is_concrete])
         partially_eval_const = 0
         for name, const in self.constraints_itr():
-            err2 = "Constraint is not attached to the same Z3 context: %s" % const
             assert isinstance(const, bool) or const.ctx == self.z3_ctx, err2
             if track:
+                err2 = "Constraint is not attached to the same Z3 context: %s" % const
                 if isinstance(const, bool):
                     var = self.create_fresh_var(z3.BoolSort(ctx=self.z3_ctx), value=None, name_prefix='BoolHack_')
                     solver.assert_and_track(var.var == const, name)
@@ -547,6 +550,7 @@ class SolverContext(object):
                         solver.add(greater_less)
                         solver.add(less_greater)
         t2 = timer()
+
         print "X" * 50
         print "Total Number of variables:", len(self._vars)
         print "Total Number of Constraints:", len(self._tracked)
@@ -572,6 +576,9 @@ class SolverContext(object):
         print "Z3 check time: %f" % (t3 - t2)
         if set_model and ret == z3.sat:
             self.set_model(solver.model())
+            print "*" * 80
+        with open('smt_solvered.smt2', 'w') as outf:
+            outf.write(solver.to_smt2())
         return ret
 
     @staticmethod

@@ -278,7 +278,31 @@ hole configs (next-hops)
 
     ==================== R1 route maps smt ===========
     --------- route map & route map line smt ---------
-    Route Map: R1_export_to_Provider1  ===> SMTVar(SelectOneRmapLineIndex_84, Int, ?)
+    Route Map: R1_export_to_Provider1
+        Announcement: [Provider2, R2, R1] announcement smt
+                      ===> SMTVar(SelectOneRmapLineIndex_84, Int, ?) ----------+
+                      ===> SMTConst RmapIndexBound_R1_export_to_Provider1_0 <--+
+
+    Route Map Line: lineno:  1
+    	            access:  EMPTY?Value, 
+    	            Matches: [MatchSelectOne([MatchNextHop(EMPTY?Value), 
+    Route Map                 MatchIpPrefixListList(IpPrefixList(id=ip_list_R1_1, 
+    R1_export_to_Provider1        access=Access.permit, networks=['EMPTY?Value'])), 
+    Line 1                    MatchCommunitiesList(CommunityList(id=2, 
+                                  access=Access.permit, communities=['EMPTY?Value'])), 
+                              MatchAsPath(EMPTY?Value)])], 
+    	            Actions: [SetActions([SetNextHop(EMPTY?Value), 
+                              SetCommunity(['EMPTY?Value']), 
+                              SetCommunity(['EMPTY?Value']), 
+                              SetLocalPref(EMPTY?Value)])]>
+                    ------------------------------------------------------------------
+    	            lineno:  100
+    Route Map       access:  Access.deny, 
+    R1_export_to_P1 Matches: [], 
+    Line 1          Actions: []>
+
+    
+    for 
 
     --------- route map match MatchSelectOne ---------
     Route Map Line - Match: MatchSelectOne [BEGIN]
@@ -292,9 +316,9 @@ hole configs (next-hops)
               ===>  SMTVar(SelectOne_index_88, Int, ?)
         * MatchSelectOne - MatchCommunitiesList(CommunityList(id=2, access=Access.permit, communities=['EMPTY?Value']))
 
-              ===> SMTVar(Var_89, Bool, True)      # community 100:1 ??
-              ===> SMTVar(Var_90, Bool, True)      # community 100:2 ??
-              ===> SMTVar(Var_91, Bool, True)      # community 100:3 ??
+              ===> SMTVar(Var_89, Bool, True)      # community 100:2 ??
+              ===> SMTVar(Var_90, Bool, True)      # community 100:3 ??
+              ===> SMTVar(Var_91, Bool, True)      # community 100:1 ??
               ===>  SMTVar(SelectOne_index_92, Int, ?)
         * MatchSelectOne - MatchAsPath(EMPTY?Value)
               ===> SMTVar(Var_93, EnumType(ASPathSort, 8), ?)
