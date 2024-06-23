@@ -1,5 +1,7 @@
 ## <b>SyNet-Plus(NetComplete) Configure on Ubuntu 22.04 LTS</b>
 
+[NetComplete-Plus VM link](https://drive.google.com/file/d/1ySJ2AIZ66DbO70kF0H-aXvqEqa9MsHyR/view?usp=drive_link)
+
 ### <b>Python Configure</b>
 
 ```sh
