@@ -285,16 +285,18 @@ hole configs (next-hops)
 
     Route Map Line: lineno:  1
     	            access:  EMPTY?Value, 
-    	            Matches: [MatchSelectOne([MatchNextHop(EMPTY?Value), 
-    Route Map                 MatchIpPrefixListList(IpPrefixList(id=ip_list_R1_1, 
+    	            Matches: [MatchSelectOne([
+                                MatchNextHop(EMPTY?Value), 
+    Route Map                   MatchIpPrefixListList(IpPrefixList(id=ip_list_R1_1, 
     R1_export_to_Provider1        access=Access.permit, networks=['EMPTY?Value'])), 
-    Line 1                    MatchCommunitiesList(CommunityList(id=2, 
+    Line 1                      MatchCommunitiesList(CommunityList(id=2, 
                                   access=Access.permit, communities=['EMPTY?Value'])), 
-                              MatchAsPath(EMPTY?Value)])], 
-    	            Actions: [SetActions([SetNextHop(EMPTY?Value), 
-                              SetCommunity(['EMPTY?Value']), 
-                              SetCommunity(['EMPTY?Value']), 
-                              SetLocalPref(EMPTY?Value)])]>
+                                MatchAsPath(EMPTY?Value)])], 
+    	            Actions: [SetActions([
+                                SetNextHop(EMPTY?Value), 
+                                SetCommunity(['EMPTY?Value']), 
+                                SetCommunity(['EMPTY?Value']), 
+                                SetLocalPref(EMPTY?Value)])]>
                     ------------------------------------------------------------------
     	            lineno:  100
     Route Map       access:  Access.deny, 
@@ -326,7 +328,11 @@ hole configs (next-hops)
     Route Map Line: MatchSelectOne [END]
         ===> SMTVar(SelectOne_index_94, Int, ?)
 
-    Route Map Selector: SMTVar(match_sel_108, Bool, ?)
+    Route Map Selector: NONE
+
+    --------------- route map Access -----------------
+    Route Map Access: True(Permit), False(Deny) ( or True(Deny), False(Permit) )
+        ===> SMT(Var_95, Bool, ?)
 
     --------- route map Action SetActions ------------
     Route Map Line - Action: SetActions [BEGIN]

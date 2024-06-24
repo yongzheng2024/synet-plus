@@ -260,7 +260,7 @@ class BGP(object):
         # BGP SMT begin: xxxxx_info -> xxxxx_anns ( SMT variables )
 
         # export_info[neighbor][prop] -> origin xxxxx_info
-        # export_anns[neighbor][prop] -> origin xxxxx_anns
+        # export_anns[neighbor][prop] -> origin xxxxx_anns ( SMT variables )
 
         # TODO write some infomation to related file
         # Third, apply export route map (if any)

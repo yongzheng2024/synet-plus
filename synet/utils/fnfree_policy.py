@@ -65,6 +65,11 @@ class SMTAbstractMatch(object):
         Using this method on the same announcement multiple times generates
         redundant constraints and variables
         """
+        print "========= ", "SMTAbstractMacth is_match BEG", "=" * 10
+        print "========= ", "SMTAbstractMacth is_match END", "=" * 10
+        raise NotImplementedError()
+
+    def get_is_match(self, announcement):
         raise NotImplementedError()
 
 
@@ -76,6 +81,11 @@ class SMTMatchAll(SMTAbstractMatch):
         self.match_var = ctx.create_fresh_var(z3.BoolSort(ctx=self.ctx.z3_ctx), name_prefix='match_all_', value=True)
 
     def is_match(self, announcement):
+        print "========= ", "SMTMacthAll is_match BEG", "=" * 10
+        print "========= ", "SMTMacthAll is_match END", "=" * 10
+        return self.match_var
+
+    def get_is_match(self, announcement):
         return self.match_var
 
     def get_config(self):
@@ -90,6 +100,11 @@ class SMTMatchNone(SMTAbstractMatch):
         self.match_var = ctx.create_fresh_var(z3.BoolSort(ctx=self.ctx.z3_ctx), name_prefix='match_none_', value=False)
 
     def is_match(self, announcement):
+        print "========= ", "SMTMacthNone is_match BEG", "=" * 10
+        print "========= ", "SMTMacthNone is_match END", "=" * 10
+        return self.match_var
+
+    def get_is_match(self, announcement):
         return self.match_var
 
 
@@ -103,6 +118,7 @@ class SMTMatchAnd(SMTAbstractMatch):
         self.matched_announcements = {}  # Cache evaluated announcements
 
     def is_match(self, announcement):
+        print "========= ", "SMTMacthAnd is_match BEG", "=" * 10
         # Check cache first
         # TODO partially evaluate short cuts
         if announcement not in self.matched_announcements:
@@ -116,17 +132,26 @@ class SMTMatchAnd(SMTAbstractMatch):
                 value = False
                 is_concrete = True
             match_var = self.ctx.create_fresh_var(z3.BoolSort(ctx=self.ctx.z3_ctx), name_prefix='match_and_', value=value)
+            print "]]]]]]]]]> ", match_var
             if not is_concrete:
                 tmp = [result.var == True for result in results if not result.is_concrete]
                 tmp += [self.ctx.z3_ctx]
                 constraint = z3.And(*tmp)
-                self.ctx.register_constraint(
+                match_con = self.ctx.register_constraint(
                     match_var.var == constraint, name_prefix='const_and_')
+                print "]]]]]]]]]> ", match_con
             self.matched_announcements[announcement] = match_var
+        print "========= ", "SMTMacthAnd is_match END", "=" * 10
         return self.matched_announcements[announcement]
 
     def __str__(self):
         return "SMTMatchAnd(%s)" % [str(m) for m in self.matches]
+
+    def get_is_match(self, announcement):
+        if announcement in self.matched_announcements.keys():
+            return self.matched_announcements[announcement]
+        else:
+            return self.is_match(announcement)
 
     def get_config(self):
         configs = [match.get_config() for match in self.matches]
@@ -148,6 +173,7 @@ class SMTMatchOr(SMTAbstractMatch):
         self.matched_announcements = {}  # Cache evaluated announcements
 
     def is_match(self, announcement):
+        print "========= ", "SMTMacthOr is_match BEG", "=" * 10
         # Check cache first
         # TODO partially evaluate short cuts
         if announcement not in self.matched_announcements:
@@ -167,10 +193,17 @@ class SMTMatchOr(SMTAbstractMatch):
                 self.ctx.register_constraint(
                     match_var.var == constraint, name_prefix='const_or_')
             self.matched_announcements[announcement] = match_var
+        print "========= ", "SMTMacthOr is_match END", "=" * 10
         return self.matched_announcements[announcement]
 
     def __str__(self):
         return "SMTMatchOr(%s)" % self.matches
+
+    def get_is_match(self, announcement):
+        if announcement in self.matched_announcements.keys():
+            return self.matched_announcements[announcement]
+        else:
+            return self.is_match(announcement)
 
     def get_config(self):
         return [match.get_config() for match in self.matches]
@@ -194,10 +227,12 @@ class SMTMatchSelectOne(SMTAbstractMatch):
         self.ctx = ctx
         self.matched_announcements = {}  # Cache evaluated announcements
 
+        # matches is None
         if not matches:
             # By default all attributes are allowed
             matches = []
             for attr in Announcement.attributes:
+                # TODO understand
                 if attr == 'communities':
                     for community in self.announcements[0].communities:
                         # Match only when community is set
@@ -216,12 +251,14 @@ class SMTMatchSelectOne(SMTAbstractMatch):
                         ctx=self.ctx)
                     matches.append(match)
 
+        # matches is non-None
         # Create map for the different matches
         self.matches = {}
         self.index_var = self.ctx.create_fresh_var(z3.IntSort(ctx=self.ctx.z3_ctx), name_prefix='SelectOne_index_')
         print "=========> ", self.index_var
         for index, match in enumerate(matches):
             self.matches[index] = match
+            print ">>>>>>>>>> ", index, match
         # Make index in the range of number of matches
         smt_const = self.ctx.register_constraint(
             z3.And(
@@ -231,28 +268,53 @@ class SMTMatchSelectOne(SMTAbstractMatch):
         print "=========> ", smt_const
 
     def _get_match(self, announcement, current_index=0):
+        print "." * 30, current_index, "BEGIN"
         """Recursively construct a match"""
         if current_index not in self.matches:
+            print "." * 30, current_index, "END", "END"
             # Base case
             return False
             return z3.And(self.index_var.var == current_index, False, self.ctx.z3_ctx)
+
+        # print "." * 10, self.matches[current_index], "is_match" 
         is_match  = self.matches[current_index].is_match(announcement)
+
         if is_match.is_concrete:
             match_var = is_match.get_value()
         else:
-            match_var = self.matches[current_index].is_match(announcement).var
+            # TODO if error, then modify
+            # match_var = self.matches[current_index].is_match(announcement).var
+            match_var = self.matches[current_index].get_is_match(announcement).var
         index_check = self.index_var.var == current_index
+        # call chain attr1 -> attr2 -> attr3 -> ...
+        # then select one
         next_attr = self._get_match(announcement, current_index + 1)
+        print "." * 30, current_index, "END"
         return z3.If(index_check, match_var, next_attr, ctx=self.ctx.z3_ctx)
 
     def is_match(self, announcement):
+        print "========= ", "SMTMatchSelectorOne is_match BEG", "=" * 10
+        print "\"" * 39, "\'" * 10
         if announcement not in self.matched_announcements:
             var = self.ctx.create_fresh_var(z3.BoolSort(ctx=self.ctx.z3_ctx))
+            print "---------> ", var
             self.matched_announcements[announcement] = var
-            constraint = var.var == self._get_match(announcement)
-            self.ctx.register_constraint(
-                constraint, name_prefix='SelectOne_match_')
+            now_var = self._get_match(announcement)
+            print var.var
+            print now_var
+            # constraint = var.var == self._get_match(announcement)
+            constraint = var.var == now_var
+            con = self.ctx.register_constraint(constraint, name_prefix='SelectOne_match_')
+            print "---------> ", con
+        print "\"" * 50
+        print "========= ", "SMTMatchSelectorOne is_match END", "=" * 10
         return self.matched_announcements[announcement]
+
+    def get_is_match(self, announcement):
+        if announcement in self.matched_announcements.keys():
+            return self.matched_announcements[announcement]
+        else:
+            return self.is_match(announcement)
 
     def get_used_match(self):
         match = self.matches[self.index_var.get_value()]
@@ -294,6 +356,7 @@ class SMTMatchAttribute(SMTAbstractMatch):
         self.matched_announcements = {}  # Cache evaluated announcements
 
     def is_match(self, announcement):
+        print "========= ", "SMTMacthAttribute", self.attribute, "is_match BEG", "=" * 10
         attr = getattr(announcement, self.attribute)
         # Check cache first
         if announcement not in self.matched_announcements:
@@ -302,12 +365,21 @@ class SMTMatchAttribute(SMTAbstractMatch):
             if not is_symbolic(constraint):
                 value = constraint
             match_var = self.ctx.create_fresh_var(z3.BoolSort(ctx=self.ctx.z3_ctx), name_prefix='match_%s_var_' % self.attribute, value=value)
+            print "---------> ", match_var
             if is_symbolic(constraint):
-                self.ctx.register_constraint(
+                const = self.ctx.register_constraint(
                     match_var.var == constraint,
                     name_prefix='const_match_%s_' % self.attribute)
+                print "---------> ", const
             self.matched_announcements[announcement] = match_var
+        print "========= ", "SMTMacthAttribute", self.attribute, "is_match END", "=" * 10
         return self.matched_announcements[announcement]
+
+    def get_is_match(self, announcement):
+        if announcement in self.matched_announcements.keys():
+            return self.matched_announcements[announcement]
+        else:
+            return self.is_match(announcement)
 
     def __str__(self):
         return "SMTMatchAttribute(attribute=%s, value=%s)" % (self.attribute, self.value)
@@ -338,17 +410,30 @@ class SMTMatchCommunity(SMTAbstractMatch):
         self.matched_announcements = {}  # Cache evaluated announcements
 
     def is_match(self, announcement):
+        print "========= ", "SMTMacthCommunity is_match BEG", "=" * 10
+        # print "--------- ", announcement
         if announcement not in self.matched_announcements:
             attr = announcement.communities[self.community]
             constraint = attr.check_eq(self.value)
+            # print attr
+            # print self.value
+            # print constraint
             value = None
             if not is_symbolic(constraint):
                 value = constraint
             match_var = self.ctx.create_fresh_var(z3.BoolSort(ctx=self.ctx.z3_ctx), value=value)
+            print "]]]]]]]]]> ", match_var
             if is_symbolic(constraint):
                 self.ctx.register_constraint(match_var.var == constraint)
             self.matched_announcements[announcement] = match_var
+        print "========= ", "SMTMacthCommunity is_match END", "=" * 10
         return self.matched_announcements[announcement]
+
+    def get_is_match(self, announcement):
+        if announcement in self.matched_announcements.keys():
+            return self.matched_announcements[announcement]
+        else:
+            return self.is_match(announcement)
 
     def get_config(self):
         return self.community
@@ -908,6 +993,7 @@ class SMTSetPermitted(SMTSetAttribute):
     """Short cut to set the value of Announcement.permitted"""
 
     def __init__(self, match, value, announcements, ctx):
+        # TODO not understand
         super(SMTSetAttribute, self).__init__()
         assert isinstance(ctx, SolverContext)
         assert hasattr(match, 'is_match')
@@ -951,7 +1037,9 @@ class SMTSetPermitted(SMTSetAttribute):
                 if attr != 'permitted':
                     new_vals[attr] = getattr(announcement, attr)
                 else:
+                    # TODO call SMTSelectorMatch is_match function
                     is_match = self.match.is_match(announcement)
+                    # TODO call SMTSelectorMatch is_match function end
                     oldp = announcement.permitted
                     if is_match.is_concrete and oldp.is_concrete:
                         if is_match.get_value() and oldp.get_value() == True:
@@ -960,6 +1048,7 @@ class SMTSetPermitted(SMTSetAttribute):
                             new_var = oldp
                     else:
                         new_var = self.smt_ctx.create_fresh_var(z3.BoolSort(self.smt_ctx.z3_ctx), name_prefix='ActionPermittedVal')
+                        print "#########> ", new_var
                         vv = self.value.var if self.value.is_concrete else self.value.get_var()
                         attv = oldp.var if oldp.is_concrete else oldp.get_var()
                         # Permitted only overwrite announcements
@@ -1082,6 +1171,7 @@ def attribute_match_factory(attribute, value=None, announcements=None, ctx=None)
         raise ValueError("Unrecognized attribute or community '%s'" % attribute)
 
     if announcements and ctx:
+        # return related right match class
         return klass(value=value, announcements=announcements, ctx=ctx)
     return klass
 
@@ -1127,7 +1217,13 @@ class SMTMatchCommunityList(SMTAbstractMatch):
         self.smt_match = SMTMatchAnd(self.matches, self.announcements, self.ctx)
 
     def is_match(self, announcement):
-        return self.smt_match.is_match(announcement)
+        print "========= ", "SMTMacthCommunityList is_match BEG", "=" * 10
+        is_match_ret = self.smt_match.is_match(announcement)
+        print "========= ", "SMTMacthCommunityList is_match END", "=" * 10
+        return is_match_ret;
+
+    def get_is_match(self, announcement):
+        return self.smt_match.get_is_match(announcement)
 
     def _get_community_match(self, community):
         if not is_empty(community):
@@ -1182,7 +1278,13 @@ class SMTMatchIpPrefixList(SMTAbstractMatch):
         return SMTMatchSelectOne(self.announcements, self.ctx, matches)
 
     def is_match(self, announcement):
-        return self.smt_match.is_match(announcement)
+        print "========= ", "SMTMacthIpPrefixList is_match BEG", "=" * 10
+        is_match_ret = self.smt_match.is_match(announcement)
+        print "========= ", "SMTMacthIpPrefixList is_match END", "=" * 10
+        return is_match_ret;
+
+    def get_is_match(self, announcement):
+        return self.smt_match.get_is_match(announcement)
 
     def get_config(self):
         networks = [desanitize_smt_name(n) for n in self.smt_match.get_config() if n]
@@ -1217,7 +1319,13 @@ class SMTMatch(SMTAbstractMatch):
             self.match_dispatch[type(match)]()
 
     def is_match(self, announcement):
-        return self.smt_match.is_match(announcement)
+        print "========= ", "SMTMacth is_match BEG", "=" * 10
+        is_match_ret = self.smt_match.is_match(announcement)
+        print "========= ", "SMTMacth is_match END", "=" * 10
+        return is_match_ret;
+
+    def get_is_match(self, announcement):
+        return self.smt_match.get_is_match(announcement)
 
     def _load_match_next_hop(self):
         value = self.match.match if not is_empty(self.match.match) else None
@@ -1280,6 +1388,7 @@ class SMTMatch(SMTAbstractMatch):
             print match
             smt_match = SMTMatch(match, self.announcements, self.ctx)
             matches.append(smt_match)
+        print "M" * 60
         self.smt_match = SMTMatchSelectOne(self.announcements, self.ctx, matches)
         print "M" * 60
 
@@ -1303,8 +1412,10 @@ class SMTActions(SMTAbstractAction):
         if isinstance(match, Match) or match is None:
             self.smt_match = SMTMatch(match, self._old_announcements, self.ctx)
         else:
+            # TODO SMTRouteMapLine set match to SMTSelectorMatch ( type SMTAbstractMatch )
             assert isinstance(match, SMTAbstractMatch), match
             self.smt_match = match
+
         self.action_dispatch = {
             ActionSetLocalPref: self._set_local_pref,
             ActionSetCommunity: self._set_communities,
@@ -1332,6 +1443,16 @@ class SMTActions(SMTAbstractAction):
             if self._selector:
                 for index, ann in enumerate(self.smt_actions[-1].announcements):
                     prev = ann.prev_announcement
+                    print ann
+                    print prev
+                    if ann == prev:
+                        print "(" * 90
+                        print "(" * 90
+                        print "(" * 90
+                    else:
+                        print ")" * 90
+                        print ")" * 90
+                        print ")" * 90
                     if prev in self._selector:
                         # TODO not understand
                         self._selector[ann] = self._selector.get(prev)
@@ -1473,9 +1594,11 @@ class SMTSelectorMatch(SMTAbstractMatch):
         self.matched_announcements = {}  # Cache evaluated announcements
 
     def is_match(self, announcement):
+        print "========= ", "SMTSelectorMacth is_match BEG", "=" * 10
         #if not self.selectors_vars:
         #    return self.match.is_match(announcement)
         if announcement not in self.matched_announcements:
+            # TODO call SMTMatch is_match function
             is_match = self.match.is_match(announcement)
             global SELECTOR
             sel = SELECTOR.get(announcement, None) or self.selectors_vars.get(announcement, None)
@@ -1486,14 +1609,21 @@ class SMTSelectorMatch(SMTAbstractMatch):
             if sel.is_concrete and sel.get_value() != self.selector_value:
                 value = False
             match_var = self.ctx.create_fresh_var(z3.BoolSort(ctx=self.ctx.z3_ctx), name_prefix='match_sel_', value=value)
-            print "=========> ", match_var
+            print "]]]]]]]]]> ", match_var
             if not value:
                 self.ctx.register_constraint(
                     z3.And(is_match.var,
                            sel.var == self.selector_value, self.ctx.z3_ctx) == match_var.var,
                     name_prefix='Selector_')
             self.matched_announcements[announcement] = match_var
+        print "========= ", "SMTSelectorMacth is_match END", "=" * 10
         return self.matched_announcements[announcement]
+
+    def get_is_match(self, announcement):
+        if announcement in self.matched_announcements.keys():
+            return self.matched_announcements[announcement]
+        else:
+            return self.is_match(announcement)
 
     def get_config(self):
         if not self.selectors_vars:
@@ -1525,6 +1655,7 @@ class SMTRouteMapLine(SMTAbstractAction):
         self.line_no_match = line_no_match
 
         print "+" * 30, "SMTMatch & SMTMachAnd", "+" * 30
+        print line.matches
         if not line.matches:
             # Empty matches all by default
             self.smt_match = SMTMatch(None, self.old_announcements, self.ctx)
@@ -1540,7 +1671,7 @@ class SMTRouteMapLine(SMTAbstractAction):
                 announcements=self.old_announcements,
                 ctx=self.ctx)
 
-        # Ensure that only one route map is selected is selected
+        # Ensure that only one route map is selected
         print "+" * 30, "SMTSelectorMatch", "+" * 30
         self.selector_match = SMTSelectorMatch(
             selectors_vars=line_no_match,
@@ -1557,6 +1688,7 @@ class SMTRouteMapLine(SMTAbstractAction):
             actions += line.actions
         # Call the actions
         print "+" * 30, "SMTActions", "+" * 30
+        print actions
         self.smt_actions = SMTActions(
             match=self.selector_match,
             actions=actions,
@@ -1655,20 +1787,24 @@ class SMTRouteMap(SMTAbstractAction):
             for ann in self.old_announcements:
                 index_var = selectors[ann]
                 print "++++++++++++++++++++++++++ is_match"
-                is_match = box.smt_match.is_match(ann)
+                # is_match = box.smt_match.is_match(ann)
+                is_match = box.smt_match.get_is_match(ann)
                 if i == 0:
-                    const = z3.If(box.smt_match.is_match(ann).var == True,
+                    # const = z3.If(box.smt_match.is_match(ann).var == True,
+                    const = z3.If(box.smt_match.get_is_match(ann).var == True,
                                   index_var.var == line.lineno,
                                   index_var.var != line.lineno,
                                   ctx=self.ctx.z3_ctx)
                 else:
-                    prev = [z3.Not(b.smt_match.is_match(ann).var, self.ctx.z3_ctx)
+                    # prev = [z3.Not(b.smt_match.is_match(ann).var, self.ctx.z3_ctx)
+                    prev = [z3.Not(b.smt_match.get_is_match(ann).var, self.ctx.z3_ctx)
                             for b in self.smt_lines[:-1]]
                     prev += [self.ctx.z3_ctx]
                     prev = z3.And(*prev)
                     const = z3.If(
                         z3.And(prev == True,
-                               box.smt_match.is_match(ann).var == True,
+                               # box.smt_match.is_match(ann).var == True,
+                               box.smt_match.get_is_match(ann).var == True,
                                self.ctx.z3_ctx),
                         index_var.var == line.lineno,
                         index_var.var != line.lineno,
