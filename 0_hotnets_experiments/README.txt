@@ -423,6 +423,19 @@ hole configs (community)
     	access: EMPTY?Value, 
     	Matches: 
     		[MatchCommunitiesList(CommunityList(id=1, access=Access.permit, communities=['EMPTY?Value']))], 
+
+        SMTSelectorMatch
+            SMTMatch
+                SMTMatchCommunityList
+                    SMTMatchCommunity 100:1
+                    SMTMatchCommunity 100:2
+                    SMTMatchCommunity 100:3
+                    SMTMatchSelectOne 100:1 or 100:2 or 100:3
+                SMTMatchAnd
+
+
+
+
     	Actions: 
     		[]>
     	lineno: 20
