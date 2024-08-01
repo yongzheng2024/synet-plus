@@ -235,18 +235,6 @@ def test_bgp_example(output_dir):
         comm2_list = CommunityList(list_id=2, access=Access.permit, communities=[comm2])
         match_comm1_list = MatchCommunitiesList(communities_list=comm1_list)
         match_comm2_list = MatchCommunitiesList(communities_list=comm2_list)
-        # rline3 = RouteMapLine(matches=[match_comm2_list], actions=[], access=Access.deny, lineno=10)
-        # rline4 = RouteMapLine(matches=[match_comm1_list], actions=[], access=Access.deny, lineno=20)
-        # rline5 = RouteMapLine(matches=[], actions=[], access=Access.permit, lineno=30)
-        # rline6 = RouteMapLine(matches=[], actions=[], access=Access.deny, lineno=100)
-        # rmap_export = RouteMap(name=exp_name, lines=[rline3, rline4, rline5, rline6])
-        # TODO full-configs-simple
-        # rline3 = RouteMapLine(matches=[match_comm2_list], actions=[], access=Access.deny, lineno=10)
-        # rline4 = RouteMapLine(matches=[], actions=[], access=Access.permit, lineno=20)
-        # rline5 = RouteMapLine(matches=[], actions=[], access=Access.deny, lineno=100)
-        # rmap_export = RouteMap(name=exp_name, lines=[rline3, rline4, rline5])
-        # TODO holes-configs-simple-nexthop (select one)
-        # rmap_export = RouteMap.generate_symbolic(name=exp_name, graph=graph, router=local)
         # TODO holes-configs-simple-community
         comm_list = CommunityList(list_id=1, access=Access.permit, communities=[VALUENOTSET])
         match_comm_list = MatchCommunitiesList(communities_list=comm_list)
@@ -254,9 +242,6 @@ def test_bgp_example(output_dir):
         rline4 = RouteMapLine(matches=[], actions=[], access=Access.permit, lineno=20)
         rline5 = RouteMapLine(matches=[], actions=[], access=Access.deny, lineno=100)
         rmap_export = RouteMap(name=exp_name, lines=[rline3, rline4, rline5])
-        # TODO deny all traffic
-        # rline1 = RouteMapLine(matches=[], actions=[], access=Access.deny, lineno=10)
-        # rmap_export = RouteMap(name=exp_name, lines=[rline1])
         graph.add_route_map(local, rmap_import)
         graph.add_route_map(local, rmap_export)
         graph.add_bgp_import_route_map(local, peer, rmap_import.name)
@@ -298,6 +283,7 @@ def test_bgp_example(output_dir):
         graph.add_bgp_export_route_map(local, peer, rmap_export.name)
 
     for local, peer in [(r3, r1), (r3, r2)]:
+    # for local, peer in [(r3, r1)]:
         from tekton.bgp import Access
         imp_name = "{}_import_from_{}".format(local, peer)
         # exp_name = "{}_export_to_{}".format(local, peer)
@@ -308,6 +294,8 @@ def test_bgp_example(output_dir):
         match_comm1_list = MatchCommunitiesList(communities_list=comm1_list)
         match_comm2_list = MatchCommunitiesList(communities_list=comm2_list)
         action_set_localpref100 = ActionSetLocalPref(local_pref=100)
+        # TODO order path requirements error
+        # action_set_localpref100 = ActionSetLocalPref(local_pref=300)
         action_set_localpref200 = ActionSetLocalPref(local_pref=200)
         rline1 = RouteMapLine(matches=[match_comm1_list], actions=[action_set_localpref200], access=Access.permit, lineno=10)
         rline2 = RouteMapLine(matches=[match_comm2_list], actions=[action_set_localpref100], access=Access.permit, lineno=20)
@@ -317,6 +305,32 @@ def test_bgp_example(output_dir):
         # graph.add_route_map(local, rmap_export)
         graph.add_bgp_import_route_map(local, peer, rmap_import.name)
         # graph.add_bgp_export_route_map(local, peer, rmap_export.name)
+
+    """
+    for local, peer in [(r3, r2)]:
+        from tekton.bgp import Access
+        imp_name = "{}_import_from_{}".format(local, peer)
+        # exp_name = "{}_export_to_{}".format(local, peer)
+        comm1 = Community(value="100:1")
+        comm2 = Community(value="100:2")
+        comm1_list = CommunityList(list_id=1, access=Access.permit, communities=[comm1])
+        comm2_list = CommunityList(list_id=2, access=Access.permit, communities=[comm2])
+        match_comm1_list = MatchCommunitiesList(communities_list=comm1_list)
+        match_comm2_list = MatchCommunitiesList(communities_list=comm2_list)
+        action_set_localpref100 = ActionSetLocalPref(local_pref=100)
+        # TODO order path requirements error
+        # action_set_localpref100 = ActionSetLocalPref(local_pref=300)
+        action_set_localpref200 = ActionSetLocalPref(local_pref=200)
+        # rline1 = RouteMapLine(matches=[match_comm1_list], actions=[action_set_localpref200], access=Access.permit, lineno=10)
+        rline1 = RouteMapLine(matches=[match_comm1_list], actions=[action_set_localpref200], access=Access.deny, lineno=10)
+        rline2 = RouteMapLine(matches=[match_comm2_list], actions=[action_set_localpref100], access=Access.permit, lineno=20)
+        rline3 = RouteMapLine(matches=[], actions=[], access=Access.deny, lineno=100)
+        rmap_import = RouteMap(name=imp_name, lines=[rline1, rline2, rline3])
+        graph.add_route_map(local, rmap_import)
+        # graph.add_route_map(local, rmap_export)
+        graph.add_bgp_import_route_map(local, peer, rmap_import.name)
+        # graph.add_bgp_export_route_map(local, peer, rmap_export.name)
+    """
 
     for local, peer in [(r3, r1)]:
         from tekton.bgp import Access
@@ -347,6 +361,54 @@ def test_bgp_example(output_dir):
         graph.add_route_map(local, rmap_export)
         # graph.add_bgp_import_route_map(local, peer, rmap_import.name)
         graph.add_bgp_export_route_map(local, peer, rmap_export.name)
+
+    """
+    for local, peer in [(r2, r1)]:
+        from tekton.bgp import Access
+        imp_name = "{}_import_from_{}".format(local, peer)
+        exp_name = "{}_export_to_{}".format(local, peer)
+        comm1 = Community(value="100:1")
+        comm2 = Community(value="100:2")
+        comm1_list = CommunityList(list_id=1, access=Access.permit, communities=[comm1])
+        comm2_list = CommunityList(list_id=2, access=Access.permit, communities=[comm2])
+        match_comm1_list = MatchCommunitiesList(communities_list=comm1_list)
+        match_comm2_list = MatchCommunitiesList(communities_list=comm2_list)
+        comm_list = CommunityList(list_id=1, access=Access.permit, communities=[VALUENOTSET])
+        match_comm_list = MatchCommunitiesList(communities_list=comm_list)
+        rline3 = RouteMapLine(matches=[match_comm_list], actions=[], access=VALUENOTSET, lineno=10)
+        rline4 = RouteMapLine(matches=[], actions=[], access=Access.permit, lineno=20)
+        rline5 = RouteMapLine(matches=[], actions=[], access=Access.deny, lineno=100)
+        rmap_export = RouteMap(name=exp_name, lines=[rline3, rline4, rline5])
+        # TODO deny all traffic
+        # rline1 = RouteMapLine(matches=[], actions=[], access=Access.deny, lineno=10)
+        # rmap_export = RouteMap(name=exp_name, lines=[rline1])
+        graph.add_route_map(local, rmap_import)
+        graph.add_route_map(local, rmap_export)
+        graph.add_bgp_import_route_map(local, peer, rmap_import.name)
+        graph.add_bgp_export_route_map(local, peer, rmap_export.name)
+    """
+
+    """
+    for local, peer in [(r1, r3)]:
+        from tekton.bgp import Access
+        exp_name = "{}_export_to_{}".format(local, peer)
+        comm1 = Community(value="100:1")
+        comm2 = Community(value="100:2")
+        comm1_list = CommunityList(list_id=1, access=Access.permit, communities=[comm1])
+        comm2_list = CommunityList(list_id=2, access=Access.permit, communities=[comm2])
+        match_comm1_list = MatchCommunitiesList(communities_list=comm1_list)
+        match_comm2_list = MatchCommunitiesList(communities_list=comm2_list)
+        rline1 = RouteMapLine(matches=[match_comm2_list], actions=[], access=Access.deny, lineno=10)
+        # rline2 = RouteMapLine(matches=[match_comm2_list], actions=[], access=Access.deny, lineno=20)
+        rline3 = RouteMapLine(matches=[], actions=[], access=Access.permit, lineno=30)
+        rline4 = RouteMapLine(matches=[], actions=[], access=Access.deny, lineno=100)
+        # rmap_export = RouteMap(name=exp_name, lines=[rline1, rline2, rline3, rline4])
+        rmap_export = RouteMap(name=exp_name, lines=[rline1, rline3, rline4])
+        # graph.add_route_map(local, rmap_import)
+        graph.add_route_map(local, rmap_export)
+        # graph.add_bgp_import_route_map(local, peer, rmap_import.name)
+        graph.add_bgp_export_route_map(local, peer, rmap_export.name)
+    """
 
     """
     # for local, peer in [(r3, customer), (r1, r2), (r2, r1)]:
