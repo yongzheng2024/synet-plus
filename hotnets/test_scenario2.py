@@ -447,11 +447,11 @@ def test_bgp_example(output_dir):
 
     path1 = PathReq(Protocols.BGP, prefix1, [customer, r3, r1, provider1], False)
     path2 = PathReq(Protocols.BGP, prefix1, [customer, r3, r2, r1, provider1], False)
-    # path3 = PathReq(Protocols.BGP, prefix1, [r2, r3, r1, provider1], False)
+    path3 = PathReq(Protocols.BGP, prefix1, [r2, r3, r1, provider1], False)
 
     path4 = PathReq(Protocols.BGP, prefix1, [customer, r3, r2, provider2], False)
     path5 = PathReq(Protocols.BGP, prefix1, [customer, r3, r1, r2, provider2], False)
-    # path6 = PathReq(Protocols.BGP, prefix1, [r1, r3, r2, provider2], False)
+    path6 = PathReq(Protocols.BGP, prefix1, [r1, r3, r2, provider2], False)
     # path6 = PathReq(Protocols.BGP, prefix1, [provider1, r1, r2, provider2], False)
 
     reqs = [
@@ -459,10 +459,10 @@ def test_bgp_example(output_dir):
             Protocols.BGP,
             prefix1,
             [
-                # KConnectedPathsReq(Protocols.BGP, prefix1, [path1, path2, path3], False),
-                # KConnectedPathsReq(Protocols.BGP, prefix1, [path4, path5, path6], False),
-                KConnectedPathsReq(Protocols.BGP, prefix1, [path1, path2], False),
-                KConnectedPathsReq(Protocols.BGP, prefix1, [path4, path5], False),
+                KConnectedPathsReq(Protocols.BGP, prefix1, [path1, path2, path3], False),
+                KConnectedPathsReq(Protocols.BGP, prefix1, [path4, path5, path6], False),
+                # KConnectedPathsReq(Protocols.BGP, prefix1, [path1, path2], False),
+                # KConnectedPathsReq(Protocols.BGP, prefix1, [path4, path5], False),
             ],
             False
         ),

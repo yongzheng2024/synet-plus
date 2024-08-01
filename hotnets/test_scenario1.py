@@ -462,10 +462,10 @@ def test_bgp_example(output_dir):
             [
                 # KConnectedPathsReq(Protocols.BGP, prefix1, [path1, path2, path3], False),
                 # KConnectedPathsReq(Protocols.BGP, prefix1, [path4, path5, path6], False),
-                # KConnectedPathsReq(Protocols.BGP, prefix1, [path1, path2], False),
-                # KConnectedPathsReq(Protocols.BGP, prefix1, [path4, path5], False),
-                KConnectedPathsReq(Protocols.BGP, prefix1, [path1], False),
-                KConnectedPathsReq(Protocols.BGP, prefix1, [path4], False),
+                KConnectedPathsReq(Protocols.BGP, prefix1, [path1, path2], False),
+                KConnectedPathsReq(Protocols.BGP, prefix1, [path4, path5], False),
+                # KConnectedPathsReq(Protocols.BGP, prefix1, [path1], False),
+                # KConnectedPathsReq(Protocols.BGP, prefix1, [path4], False),
             ],
             False
         ),
